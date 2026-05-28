@@ -53,7 +53,9 @@ Customer-facing API surface only — the same endpoints as the TS SDK:
   `timeout` + asyncio.
 - **Runtime dependency:** `httpx` only. Dev: `ruff`, `pyright`, `pytest`. Build: `uv` +
   `hatchling`.
-- **Python:** 3.9+, `from __future__ import annotations` everywhere.
+- **Python:** 3.10+, `from __future__ import annotations` everywhere. (3.10 floor: the
+  reflective `from_dict` evaluates `X | None` annotations at runtime via
+  `get_type_hints`, which needs PEP 604 unions; 3.9 is also EOL as of 2025-10.)
 - **License:** AGPL-3.0-only (matches TS SDK).
 
 ### Deliberate divergences from the JS SDK
