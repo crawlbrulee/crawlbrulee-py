@@ -21,6 +21,10 @@ def _strip_trailing_slash(url: str) -> str:
     return url.rstrip("/")
 
 
+def _truncate_preview(text: str, limit: int = 200) -> str:
+    return text[:limit] + ("…" if len(text) > limit else "")
+
+
 def _build_headers(api_key: str, has_body: bool) -> dict[str, str]:
     headers = {
         "accept": "application/json",
@@ -38,9 +42,8 @@ def _parse_json_or_raise(text: str, status: int) -> Any:
     try:
         return json.loads(text)
     except ValueError as exc:
-        preview = text[:200] + ("…" if len(text) > 200 else "")
         raise TransportError(
-            f"Unexpected non-JSON response (status {status}): {preview}",
+            f"Unexpected non-JSON response (status {status}): {_truncate_preview(text)}",
             status=status,
             cause=exc,
         ) from exc
@@ -53,7 +56,7 @@ def _to_api_error(parsed: Any, status: int, raw: str) -> CrawlbruleeError:
         and isinstance(parsed.get("message"), str)
     ):
         return create_api_error(parsed, status)
-    preview = raw[:200] + ("…" if len(raw) > 200 else "")
+    preview = _truncate_preview(raw)
     return TransportError(f"HTTP {status}: {preview or '(empty body)'}", status=status)
 
 
@@ -105,8 +108,9 @@ class SyncTransport:
                 timeout=effective_timeout,
             )
         except httpx.TimeoutException as exc:
+            detail = f" after {effective_timeout}s" if effective_timeout else ""
             raise TransportError(
-                "Request timed out.", error_name="request_timeout", cause=exc
+                f"Request timed out{detail}.", error_name="request_timeout", cause=exc
             ) from exc
         except httpx.RequestError as exc:
             raise TransportError(f"Network error: {exc}", cause=exc) from exc
@@ -154,8 +158,9 @@ class AsyncTransport:
                 timeout=effective_timeout,
             )
         except httpx.TimeoutException as exc:
+            detail = f" after {effective_timeout}s" if effective_timeout else ""
             raise TransportError(
-                "Request timed out.", error_name="request_timeout", cause=exc
+                f"Request timed out{detail}.", error_name="request_timeout", cause=exc
             ) from exc
         except httpx.RequestError as exc:
             raise TransportError(f"Network error: {exc}", cause=exc) from exc

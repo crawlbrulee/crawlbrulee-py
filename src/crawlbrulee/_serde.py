@@ -61,13 +61,17 @@ def from_dict(cls: type[T], data: Any) -> T:
 
 
 def _convert(hint: Any, value: Any) -> Any:
+    # A wire null maps to None regardless of the declared type. This also guards
+    # the list/nested-dataclass branches below against a server sending null for
+    # a field the schema types as required (non-Optional).
+    if value is None:
+        return None
+
     origin = get_origin(hint)
 
     # Optional[X] / Union[...] / X | Y
     if origin is Union or origin is _types.UnionType:
         non_none = [a for a in get_args(hint) if a is not type(None)]
-        if value is None:
-            return None
         if len(non_none) == 1:
             return _convert(non_none[0], value)
         # Ambiguous union (e.g. int | str) -- pass the raw value through.

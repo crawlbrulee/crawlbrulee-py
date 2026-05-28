@@ -5,6 +5,7 @@ from __future__ import annotations
 from crawlbrulee._serde import from_dict, to_dict
 from crawlbrulee.types.async_ import AsyncJobStatusResponse
 from crawlbrulee.types.common import ScreenshotRequest, ScreenshotWaitAction
+from crawlbrulee.types.map import MapResponse
 from crawlbrulee.types.scrape import ScrapeExtract, ScrapeResponse
 
 
@@ -52,3 +53,36 @@ def test_from_dict_applies_wire_aliases() -> None:
 def test_to_dict_applies_wire_aliases() -> None:
     status = AsyncJobStatusResponse(job_id="j9", status="done", created_at="t")
     assert to_dict(status) == {"jobId": "j9", "status": "done", "createdAt": "t"}
+
+
+def test_from_dict_handles_null_for_non_optional_list_field() -> None:
+    # MapResponse.links is a required (non-Optional) list; a wire null must not crash.
+    result = from_dict(
+        MapResponse,
+        {
+            "links": None,
+            "meta": {
+                "pagination": {
+                    "page": 1,
+                    "limit": 10,
+                    "total": 0,
+                    "total_pages": 0,
+                    "has_more": False,
+                },
+                "truncation": {
+                    "storage_capped": False,
+                    "response_capped": False,
+                    "total_before_max_urls": 0,
+                    "total_detected_before_storage_cap": 0,
+                },
+            },
+        },
+    )
+    assert result.links is None
+    assert result.meta.pagination.total == 0
+
+
+def test_from_dict_handles_null_for_nested_dataclass_field() -> None:
+    # A wire null for a nested dataclass field must map to None, not crash.
+    page = from_dict(ScrapeResponse, {"url": "https://x.com", "screenshot": None})
+    assert page.screenshot is None

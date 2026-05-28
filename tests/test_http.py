@@ -56,10 +56,13 @@ def test_timeout_maps_to_transport_error() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("timed out", request=request)
 
-    transport = _transport(handler)
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    transport = SyncTransport(api_key="cble_test", base_url=BASE_URL, timeout=2.5, client=client)
     with pytest.raises(TransportError) as excinfo:
         transport.request("GET", "/api/whoami")
     assert excinfo.value.error_name == "request_timeout"
+    # The configured timeout duration is surfaced in the message.
+    assert "2.5s" in excinfo.value.message
 
 
 def test_network_error_maps_to_transport_error() -> None:
