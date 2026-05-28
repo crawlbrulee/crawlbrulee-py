@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from types import TracebackType
 from typing import Any
-from urllib.parse import quote
 
 from ._config import ENV_API_KEY
 from ._errors import CrawlbruleeError
 from ._http import AsyncTransport
 from ._serde import from_dict, map_body, scrape_body
-from ._util import read_env, require_api_key, require_job_id
+from ._util import (
+    read_env,
+    require_api_key,
+    require_job_id,
+    scrape_result_path,
+    scrape_status_path,
+)
 from .types.account import UsageResponse, WhoamiResponse
 from .types.async_ import AsyncJobStatusResponse, AsyncScrapeResponse
 from .types.common import ProxyTier
@@ -122,8 +128,7 @@ class AsyncCrawlbrulee:
     ) -> AsyncJobStatusResponse:
         """Look up the current status of an async scrape job."""
         require_job_id(job_id)
-        path = f"/api/scrape/status/{quote(job_id, safe='')}"
-        data = await self._transport.request("GET", path, timeout=timeout)
+        data = await self._transport.request("GET", scrape_status_path(job_id), timeout=timeout)
         return from_dict(AsyncJobStatusResponse, data)
 
     async def get_scrape_result(
@@ -131,8 +136,7 @@ class AsyncCrawlbrulee:
     ) -> ScrapeResponse:
         """Fetch the result of a completed async scrape job."""
         require_job_id(job_id)
-        path = f"/api/scrape/result/{quote(job_id, safe='')}"
-        data = await self._transport.request("GET", path, timeout=timeout)
+        data = await self._transport.request("GET", scrape_result_path(job_id), timeout=timeout)
         return from_dict(ScrapeResponse, data)
 
     async def wait_for_scrape(
@@ -145,10 +149,9 @@ class AsyncCrawlbrulee:
         exceeds ``timeout`` (pass ``timeout=0`` to wait indefinitely).
         """
         require_job_id(job_id)
-        loop = asyncio.get_event_loop()
-        deadline = loop.time() + timeout if timeout and timeout > 0 else None
+        deadline = time.monotonic() + timeout if timeout and timeout > 0 else None
         while True:
-            if deadline is not None and loop.time() >= deadline:
+            if deadline is not None and time.monotonic() >= deadline:
                 raise CrawlbruleeError(
                     f"Timed out after {timeout}s waiting for async scrape job {job_id}.",
                     status=0,

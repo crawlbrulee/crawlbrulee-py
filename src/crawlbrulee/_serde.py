@@ -9,9 +9,17 @@ from __future__ import annotations
 
 import dataclasses
 import types as _types
+from functools import cache
 from typing import Any, TypeVar, Union, get_args, get_origin, get_type_hints
 
 T = TypeVar("T")
+
+
+@cache
+def _type_hints(cls: type) -> dict[str, Any]:
+    """Resolved type hints for ``cls``, cached -- ``get_type_hints`` is costly
+    and a response class's hints never change for the life of the process."""
+    return get_type_hints(cls)
 
 
 def to_dict(obj: Any) -> Any:
@@ -41,7 +49,7 @@ def from_dict(cls: type[T], data: Any) -> T:
     Handles ``Optional``, ``list[X]``, and nested dataclasses. Unknown keys in
     ``data`` are ignored, so new server fields don't break older SDK versions.
     """
-    hints = get_type_hints(cls)
+    hints = _type_hints(cls)
     aliases: dict[str, str] = getattr(cls, "__wire_aliases__", {})
     kwargs: dict[str, Any] = {}
     for f in dataclasses.fields(cls):  # type: ignore[arg-type]
@@ -79,6 +87,11 @@ def _convert(hint: Any, value: Any) -> Any:
     return value
 
 
+def _build_body(fields: dict[str, Any]) -> dict[str, Any]:
+    """Drop ``None``-valued fields so the server's defaults apply."""
+    return {k: v for k, v in fields.items() if v is not None}
+
+
 def scrape_body(
     url: str,
     extract: Any,
@@ -89,16 +102,17 @@ def scrape_body(
     location: Any,
 ) -> dict[str, Any]:
     """Build the JSON body for ``/api/scrape`` and ``/api/scrape/async``."""
-    body = {
-        "url": url,
-        "extract": to_dict(extract),
-        "cache": to_dict(cache),
-        "require_js": require_js,
-        "exclude_selectors": exclude_selectors,
-        "proxy": proxy,
-        "location": to_dict(location),
-    }
-    return {k: v for k, v in body.items() if v is not None}
+    return _build_body(
+        {
+            "url": url,
+            "extract": to_dict(extract),
+            "cache": to_dict(cache),
+            "require_js": require_js,
+            "exclude_selectors": exclude_selectors,
+            "proxy": proxy,
+            "location": to_dict(location),
+        }
+    )
 
 
 def map_body(
@@ -113,15 +127,16 @@ def map_body(
     location: Any,
 ) -> dict[str, Any]:
     """Build the JSON body for ``/api/map``."""
-    body = {
-        "url": url,
-        "proxy": proxy,
-        "sitemap_only": sitemap_only,
-        "types": to_dict(types),
-        "cache": to_dict(cache),
-        "max_urls": max_urls,
-        "page": page,
-        "limit": limit,
-        "location": to_dict(location),
-    }
-    return {k: v for k, v in body.items() if v is not None}
+    return _build_body(
+        {
+            "url": url,
+            "proxy": proxy,
+            "sitemap_only": sitemap_only,
+            "types": to_dict(types),
+            "cache": to_dict(cache),
+            "max_urls": max_urls,
+            "page": page,
+            "limit": limit,
+            "location": to_dict(location),
+        }
+    )

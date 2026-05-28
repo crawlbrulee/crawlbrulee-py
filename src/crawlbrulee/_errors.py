@@ -129,6 +129,13 @@ def is_crawlbrulee_error(err: object) -> bool:
     return isinstance(err, CrawlbruleeError)
 
 
+def _details_for(details: dict[str, Any] | None, expected_error_name: str) -> dict[str, Any] | None:
+    """Return ``details`` only if it carries the matching ``error_name``."""
+    if details and details.get("error_name") == expected_error_name:
+        return details
+    return None
+
+
 def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
     """Map an API error body + HTTP status to the most specific error class.
 
@@ -143,15 +150,18 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
     details = details if isinstance(details, dict) else None
 
     if name == "too_many_requests":
-        d = details if details and details.get("error_name") == "too_many_requests" else None
-        return RateLimitError(message, status=status, details=d, response=body)
+        return RateLimitError(
+            message,
+            status=status,
+            details=_details_for(details, "too_many_requests"),
+            response=body,
+        )
 
     if name == "usage_allocation_error":
-        d = (
-            details
-            if details and details.get("error_name") == "usage_allocation_error"
-            else {"error_name": "usage_allocation_error", "reason": "internal_error"}
-        )
+        d = _details_for(details, "usage_allocation_error") or {
+            "error_name": "usage_allocation_error",
+            "reason": "internal_error",
+        }
         return UsageAllocationError(message, status=status, details=d, response=body)
 
     if name in ("invalid_credentials", "access_denied"):

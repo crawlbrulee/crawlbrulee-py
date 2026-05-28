@@ -5,13 +5,18 @@ from __future__ import annotations
 import time
 from types import TracebackType
 from typing import Any
-from urllib.parse import quote
 
 from ._config import ENV_API_KEY
 from ._errors import CrawlbruleeError
 from ._http import SyncTransport
 from ._serde import from_dict, map_body, scrape_body
-from ._util import read_env, require_api_key, require_job_id
+from ._util import (
+    read_env,
+    require_api_key,
+    require_job_id,
+    scrape_result_path,
+    scrape_status_path,
+)
 from .types.account import UsageResponse, WhoamiResponse
 from .types.async_ import AsyncJobStatusResponse, AsyncScrapeResponse
 from .types.common import ProxyTier
@@ -127,8 +132,7 @@ class Crawlbrulee:
     ) -> AsyncJobStatusResponse:
         """Look up the current status of an async scrape job."""
         require_job_id(job_id)
-        path = f"/api/scrape/status/{quote(job_id, safe='')}"
-        data = self._transport.request("GET", path, timeout=timeout)
+        data = self._transport.request("GET", scrape_status_path(job_id), timeout=timeout)
         return from_dict(AsyncJobStatusResponse, data)
 
     def get_scrape_result(self, job_id: str, *, timeout: float | None = None) -> ScrapeResponse:
@@ -138,8 +142,7 @@ class Crawlbrulee:
         first, or use :meth:`wait_for_scrape` to poll-then-fetch.
         """
         require_job_id(job_id)
-        path = f"/api/scrape/result/{quote(job_id, safe='')}"
-        data = self._transport.request("GET", path, timeout=timeout)
+        data = self._transport.request("GET", scrape_result_path(job_id), timeout=timeout)
         return from_dict(ScrapeResponse, data)
 
     def wait_for_scrape(

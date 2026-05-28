@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import quote
 
 from ._errors import CrawlbruleeError
 
 
 def read_env(name: str) -> str | None:
     """Return a trimmed environment variable, or ``None`` if unset/blank."""
-    value = os.environ.get(name)
-    if value is None:
-        return None
-    value = value.strip()
+    value = (os.environ.get(name) or "").strip()
     return value or None
 
 
@@ -34,3 +32,13 @@ def require_job_id(job_id: str) -> str:
     if not isinstance(job_id, str) or not job_id.strip():
         raise CrawlbruleeError("job_id must be a non-empty string.", status=0, error_name=None)
     return job_id
+
+
+def scrape_status_path(job_id: str) -> str:
+    """Path for ``GET /api/scrape/status/:jobId`` with ``job_id`` URL-encoded."""
+    return f"/api/scrape/status/{quote(job_id, safe='')}"
+
+
+def scrape_result_path(job_id: str) -> str:
+    """Path for ``GET /api/scrape/result/:jobId`` with ``job_id`` URL-encoded."""
+    return f"/api/scrape/result/{quote(job_id, safe='')}"
