@@ -2,7 +2,7 @@
 
 The official Python SDK for the [crawlbrulee](https://crawlbrulee.com) web-scraping API.
 
-- Hand-written, fully typed (ships `py.typed`).
+- Fully typed (ships `py.typed`).
 - Sync **and** async clients (`Crawlbrulee` / `AsyncCrawlbrulee`).
 - One runtime dependency: [`httpx`](https://www.python-httpx.org/).
 - Python 3.10+.
