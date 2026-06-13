@@ -28,6 +28,7 @@ from ._errors import (
     ValidationError,
     is_crawlbrulee_error,
 )
+from ._webhooks import WebhookVerificationResult, verify_webhook_signature
 from .types import *  # noqa: F403  (re-export the public DTOs)
 from .types import __all__ as _TYPES_ALL
 
@@ -46,6 +47,9 @@ __all__ = [
     "UsageAllocationError",
     "ValidationError",
     "is_crawlbrulee_error",
+    # webhooks
+    "verify_webhook_signature",
+    "WebhookVerificationResult",
     # config
     "DEFAULT_BASE_URL",
     "ENV_API_KEY",

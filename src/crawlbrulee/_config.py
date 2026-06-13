@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 #: Production base URL of the crawlbrulee API. Used by default when the caller
 #: doesn't pass a ``base_url``. Local development and staging callers point at

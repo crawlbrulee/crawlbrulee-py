@@ -23,6 +23,7 @@ from .types.async_ import AsyncJobStatusResponse, AsyncScrapeResponse
 from .types.common import ProxyTier
 from .types.map import MapCache, MapLocation, MapResponse, MapTypes
 from .types.scrape import ScrapeCache, ScrapeExtract, ScrapeLocation, ScrapeResponse
+from .types.webhooks import ScrapeCompleteWebhook
 
 
 class AsyncCrawlbrulee:
@@ -173,6 +174,57 @@ class AsyncCrawlbrulee:
                     error_name="job_failed",
                 )
             await asyncio.sleep(interval)
+
+    async def fetch_scrape_result_from_webhook(
+        self,
+        webhook: ScrapeCompleteWebhook | dict[str, Any],
+        *,
+        timeout: float | None = None,
+    ) -> ScrapeResponse:
+        """Fetch the scrape result referenced by a ``scrape.complete`` webhook.
+
+        Pass the parsed webhook body -- either a :class:`ScrapeCompleteWebhook`
+        or the plain ``dict`` you decoded from the request -- and this returns
+        the completed scrape via :meth:`get_scrape_result`.
+
+        Verify the delivery's signature with
+        :func:`crawlbrulee.verify_webhook_signature` *before* calling this.
+
+        Raises :class:`CrawlbruleeError` when the event isn't ``scrape.complete``,
+        or when the job ``failed`` (carrying ``data.error``) or was ``cancelled``.
+        HTTP errors from the result fetch propagate unchanged.
+        """
+        wh = (
+            webhook
+            if isinstance(webhook, ScrapeCompleteWebhook)
+            else from_dict(ScrapeCompleteWebhook, webhook)
+        )
+        if wh.event != "scrape.complete":
+            raise CrawlbruleeError(
+                f"Expected a 'scrape.complete' webhook, got {wh.event!r}.",
+                status=0,
+                error_name=None,
+            )
+        data = wh.data
+        if data.status == "success":
+            return await self.get_scrape_result(data.job_id, timeout=timeout)
+        if data.status == "failed":
+            raise CrawlbruleeError(
+                data.error or f"Async scrape job {data.job_id} failed.",
+                status=0,
+                error_name="job_failed",
+            )
+        if data.status == "cancelled":
+            raise CrawlbruleeError(
+                f"Async scrape job {data.job_id} was cancelled.",
+                status=0,
+                error_name=None,
+            )
+        raise CrawlbruleeError(
+            f"Async scrape job {data.job_id} has unexpected status {data.status!r}.",
+            status=0,
+            error_name=None,
+        )
 
     # ------------------------------------------------------------------
     # Mapping

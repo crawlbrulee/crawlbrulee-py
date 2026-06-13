@@ -51,6 +51,7 @@ from .scrape import (
     ScreenshotSlice,
     ScreenshotViewportInfo,
 )
+from .webhooks import ScrapeCompleteWebhook, ScrapeCompleteWebhookData
 
 __all__ = [
     # common
@@ -99,4 +100,7 @@ __all__ = [
     # account
     "UsageResponse",
     "WhoamiResponse",
+    # webhooks
+    "ScrapeCompleteWebhook",
+    "ScrapeCompleteWebhookData",
 ]

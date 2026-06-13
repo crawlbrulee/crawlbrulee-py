@@ -7,7 +7,7 @@ The official Python SDK for the [crawlbrulee](https://crawlbrulee.com) web-scrap
 - One runtime dependency: [`httpx`](https://www.python-httpx.org/).
 - Python 3.10+.
 
-> **Status:** v0.1.0 (beta). The API surface is stabilizing — expect minor breaking
+> **Status:** v0.2.0 (beta). The API surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 ---
@@ -141,6 +141,65 @@ print(len(result.links), "of", result.meta.pagination.total_pages, "pages")
 | --- | --- |
 | `usage()` | Current billing-cycle snapshot — credits, quota %, concurrency, reset time. |
 | `whoami()` | Organization + token identity behind the API key. |
+
+---
+
+## Webhooks
+
+If you configure a webhook endpoint, the API POSTs a `scrape.complete` delivery
+when an async scrape job reaches a terminal state. Each delivery is signed with
+HMAC-SHA256 in the `X-Cwbl-Signature` header (`t=<unix_seconds>,v1=<hex>`), over
+the `{timestamp}.{raw_body}` payload.
+
+**Verify the signature first**, using the **raw** request body (the exact bytes
+you received — not re-serialized JSON). `verify_webhook_signature` is pure crypto
+(no network, no extra dependency) and **returns** a result instead of raising, so
+a forged or replayed delivery is normal control flow:
+
+```python
+import json
+from fastapi import FastAPI, Request, Response
+from crawlbrulee import Crawlbrulee, verify_webhook_signature
+
+app = FastAPI()
+client = Crawlbrulee.from_env()
+WEBHOOK_SECRET = "whsec_…"  # your current signing secret
+
+@app.post("/webhooks/crawlbrulee")
+async def crawlbrulee_webhook(request: Request) -> Response:
+    raw = await request.body()  # raw bytes — do NOT re-encode the parsed JSON
+    result = verify_webhook_signature(
+        payload=raw,
+        headers=request.headers,        # case-insensitive lookup
+        secret=WEBHOOK_SECRET,
+    )
+    if not result.verified:
+        return Response(status_code=400)  # result.reason explains why
+
+    webhook = json.loads(raw)
+    page = client.fetch_scrape_result_from_webhook(webhook)
+    print(page.markdown)
+    return Response(status_code=200)
+```
+
+(In Flask, the equivalent is `request.get_data()` for the raw body and
+`request.headers` for the lookup.)
+
+`fetch_scrape_result_from_webhook(webhook)` accepts the parsed webhook as either
+the decoded `dict` or a `ScrapeCompleteWebhook` dataclass. On a `success` job it
+fetches the result via `get_scrape_result`; on `failed` it raises a
+`CrawlbruleeError` carrying the error message (`error_name="job_failed"`), and on
+`cancelled` it raises indicating cancellation.
+
+**Secret rotation.** During a rotation grace window the API also sends an
+`X-Cwbl-Signature-Rotated` header signed with the *previous* secret. Keep passing
+your current secret — `verify_webhook_signature` checks the primary header first,
+then the rotated one, and reports which matched via `result.signed_with`
+(`"primary"` or `"rotated"`).
+
+**Replay protection** is on by default: deliveries whose timestamp differs from
+now by more than `tolerance_seconds` (default `300`) are rejected with
+`reason="timestamp_out_of_tolerance"`. Pass `tolerance_seconds=0` to disable it.
 
 ---
 
