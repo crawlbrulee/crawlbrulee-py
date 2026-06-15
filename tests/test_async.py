@@ -5,8 +5,8 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from conftest import json_response, make_async, make_sync
-from crawlbrulee import CrawlbruleeError
+from conftest import json_response, make_async, make_sync, request_json
+from crawlbrulee import Crawlbrulee, CrawlbruleeError, ScrapeWebhook
 
 
 def test_scrape_async_returns_job_id() -> None:
@@ -17,6 +17,104 @@ def test_scrape_async_returns_job_id() -> None:
     client = make_sync(handler)
     result = client.scrape_async(url="https://example.com")
     assert result.job_id == "job_123"
+
+
+def test_scrape_async_sends_webhook_dataclass() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["body"] = request_json(request)
+        return json_response({"job_id": "job_123"})
+
+    client = make_sync(handler)
+    client.scrape_async(
+        url="https://example.com",
+        webhook=ScrapeWebhook(
+            url="https://hooks.example.com/cbl",
+            metadata={"order_id": "abc-123"},
+        ),
+    )
+
+    assert captured["path"] == "/api/scrape/async"
+    assert captured["body"]["webhook"] == {
+        "url": "https://hooks.example.com/cbl",
+        "metadata": {"order_id": "abc-123"},
+    }
+
+
+def test_scrape_async_accepts_webhook_dict() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = request_json(request)
+        return json_response({"job_id": "job_123"})
+
+    client = make_sync(handler)
+    client.scrape_async(
+        url="https://example.com",
+        webhook={"url": "https://hooks.example.com/cbl"},
+    )
+
+    # No metadata supplied -> only the url is sent (None omitted).
+    assert captured["body"]["webhook"] == {"url": "https://hooks.example.com/cbl"}
+
+
+def test_scrape_async_without_webhook_omits_field() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = request_json(request)
+        return json_response({"job_id": "job_123"})
+
+    client = make_sync(handler)
+    client.scrape_async(url="https://example.com")
+    assert "webhook" not in captured["body"]
+
+
+def test_sync_scrape_has_no_webhook_param() -> None:
+    # The webhook field is async-only; the sync scrape() must not accept it.
+    import inspect
+
+    assert "webhook" not in inspect.signature(Crawlbrulee.scrape).parameters
+    assert "webhook" in inspect.signature(Crawlbrulee.scrape_async).parameters
+
+
+async def test_async_client_scrape_async_sends_webhook() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["body"] = request_json(request)
+        return json_response({"job_id": "job_async"})
+
+    async with make_async(handler) as client:
+        result = await client.scrape_async(
+            url="https://example.com",
+            webhook=ScrapeWebhook(
+                url="https://hooks.example.com/cbl",
+                metadata={"team": "growth"},
+            ),
+        )
+
+    assert result.job_id == "job_async"
+    assert captured["path"] == "/api/scrape/async"
+    assert captured["body"]["webhook"] == {
+        "url": "https://hooks.example.com/cbl",
+        "metadata": {"team": "growth"},
+    }
+
+
+async def test_async_client_scrape_async_without_webhook_omits_field() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = request_json(request)
+        return json_response({"job_id": "job_async"})
+
+    async with make_async(handler) as client:
+        await client.scrape_async(url="https://example.com")
+    assert "webhook" not in captured["body"]
 
 
 def test_get_scrape_status_maps_camelcase_wire_fields() -> None:

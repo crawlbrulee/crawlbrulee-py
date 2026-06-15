@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from .common import ScreenshotRequest, ScreenshotType
 
@@ -52,6 +52,28 @@ class ScrapeLocation:
     locale: str | None = None
     #: ISO 3166-1 alpha-2 country code (e.g. ``US``). Drives the emulated timezone.
     country: str | None = None
+
+
+@dataclass
+class ScrapeWebhook:
+    """Per-job completion webhook for an **async** scrape (``scrape_async`` only).
+
+    When set, the API sends a single signed ``scrape.complete`` POST to ``url``
+    once the job reaches a terminal state. Verify deliveries with
+    :func:`crawlbrulee.verify_webhook_signature` using your organization webhook
+    secret (configured in the dashboard); there is no per-request secret.
+
+    The sync :meth:`~crawlbrulee.Crawlbrulee.scrape` does **not** accept a
+    webhook -- its response *is* the result -- so this is async-only.
+    """
+
+    #: Endpoint to receive the signed completion POST. http/https URL, max 2048
+    #: chars. **HTTPS is required in production.**
+    url: str
+    #: Opaque correlation object echoed verbatim in the webhook payload's
+    #: ``data.metadata``. Max 2048 bytes when JSON-serialized. Use it to route
+    #: deliveries without keeping your own ``job_id`` mapping.
+    metadata: dict[str, Any] | None = None
 
 
 # --------------------------------------------------------------------------

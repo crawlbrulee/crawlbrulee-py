@@ -7,7 +7,7 @@ The official Python SDK for the [crawlbrulee](https://crawlbrulee.com) web-scrap
 - One runtime dependency: [`httpx`](https://www.python-httpx.org/).
 - Python 3.10+.
 
-> **Status:** v0.2.0 (beta). The API surface is stabilizing — expect minor breaking
+> **Status:** v0.3.0 (beta). The API surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 ---
@@ -150,6 +150,37 @@ If you configure a webhook endpoint, the API POSTs a `scrape.complete` delivery
 when an async scrape job reaches a terminal state. Each delivery is signed with
 HMAC-SHA256 in the `X-Cwbl-Signature` header (`t=<unix_seconds>,v1=<hex>`), over
 the `{timestamp}.{raw_body}` payload.
+
+### Triggering a webhook
+
+Pass `webhook=` to `scrape_async` to tell the API where to deliver the
+`scrape.complete` POST for that job. This is **async-only** — the sync `scrape()`
+response *is* the result, so it has no `webhook` parameter.
+
+```python
+from crawlbrulee import Crawlbrulee, ScrapeWebhook
+
+client = Crawlbrulee.from_env()
+
+job = client.scrape_async(
+    url="https://example.com",
+    webhook=ScrapeWebhook(
+        url="https://your-app.example.com/webhooks/crawlbrulee",  # HTTPS in production
+        metadata={"order_id": "abc-123"},                          # optional, dict or omit
+    ),
+)
+# or pass a plain dict:
+# webhook={"url": "https://your-app.example.com/webhooks/crawlbrulee"}
+```
+
+- `url` — http/https endpoint (max 2048 chars). **HTTPS is required in production.**
+- `metadata` — opaque correlation object, echoed back verbatim in the webhook
+  payload's `data.metadata` (max 2048 bytes serialized). Use it to route deliveries
+  without keeping your own `job_id` mapping.
+
+Deliveries are signed with your **organization** webhook secret (configured in the
+dashboard under Account → Webhooks); there is no per-request secret. Verify and
+consume them as shown below.
 
 **Verify the signature first**, using the **raw** request body (the exact bytes
 you received — not re-serialized JSON). `verify_webhook_signature` is pure crypto

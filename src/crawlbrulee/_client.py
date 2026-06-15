@@ -9,7 +9,7 @@ from typing import Any
 from ._config import ENV_API_KEY
 from ._errors import CrawlbruleeError
 from ._http import SyncTransport
-from ._serde import from_dict, map_body, scrape_body
+from ._serde import async_scrape_body, from_dict, map_body, scrape_body
 from ._util import (
     read_env,
     require_api_key,
@@ -21,7 +21,13 @@ from .types.account import UsageResponse, WhoamiResponse
 from .types.async_ import AsyncJobStatusResponse, AsyncScrapeResponse
 from .types.common import ProxyTier
 from .types.map import MapCache, MapLocation, MapResponse, MapTypes
-from .types.scrape import ScrapeCache, ScrapeExtract, ScrapeLocation, ScrapeResponse
+from .types.scrape import (
+    ScrapeCache,
+    ScrapeExtract,
+    ScrapeLocation,
+    ScrapeResponse,
+    ScrapeWebhook,
+)
 from .types.webhooks import ScrapeCompleteWebhook
 
 
@@ -121,10 +127,18 @@ class Crawlbrulee:
         exclude_selectors: list[str] | None = None,
         proxy: ProxyTier | None = None,
         location: ScrapeLocation | dict[str, Any] | None = None,
+        webhook: ScrapeWebhook | dict[str, Any] | None = None,
         timeout: float | None = None,
     ) -> AsyncScrapeResponse:
-        """Submit a background scrape job and return its ``job_id``."""
-        body = scrape_body(url, extract, cache, require_js, exclude_selectors, proxy, location)
+        """Submit a background scrape job and return its ``job_id``.
+
+        Pass ``webhook`` to receive a signed ``scrape.complete`` POST when the
+        job finishes (async-only; verify deliveries with
+        :func:`crawlbrulee.verify_webhook_signature`).
+        """
+        body = async_scrape_body(
+            url, extract, cache, require_js, exclude_selectors, proxy, location, webhook
+        )
         data = self._transport.request("POST", "/api/scrape/async", body=body, timeout=timeout)
         return from_dict(AsyncScrapeResponse, data)
 

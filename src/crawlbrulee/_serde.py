@@ -119,6 +119,28 @@ def scrape_body(
     )
 
 
+def async_scrape_body(
+    url: str,
+    extract: Any,
+    cache: Any,
+    require_js: bool | None,
+    exclude_selectors: list[str] | None,
+    proxy: str | None,
+    location: Any,
+    webhook: Any,
+) -> dict[str, Any]:
+    """Build the JSON body for ``/api/scrape/async``.
+
+    Same as :func:`scrape_body` plus the async-only ``webhook`` field. The sync
+    ``/api/scrape`` schema rejects ``webhook``, so it lives only here.
+    """
+    body = scrape_body(url, extract, cache, require_js, exclude_selectors, proxy, location)
+    serialized = to_dict(webhook)
+    if serialized is not None:
+        body["webhook"] = serialized
+    return body
+
+
 def map_body(
     url: str,
     proxy: str | None,
