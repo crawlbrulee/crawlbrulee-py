@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from .common import ScreenshotRequest, ScreenshotType
+from .common import ScreenshotRequest, ScreenshotType, Usage
 
 # --------------------------------------------------------------------------
 # Request shapes (nested; top-level fields are method keyword arguments)
@@ -70,7 +70,7 @@ class ScrapeWebhook:
     #: Endpoint to receive the signed completion POST. http/https URL, max 2048
     #: chars. **HTTPS is required in production.**
     url: str
-    #: Opaque correlation object echoed verbatim in the webhook payload's
+    #: Opaque metadata object echoed verbatim in the webhook payload's
     #: ``data.metadata``. Max 2048 bytes when JSON-serialized. Use it to route
     #: deliveries without keeping your own ``job_id`` mapping.
     metadata: dict[str, Any] | None = None
@@ -174,6 +174,14 @@ class ScrapeMetadata:
 
 
 @dataclass
+class ScrapeResponseMeta:
+    """Request-level metadata on a scrape response (``response_meta``)."""
+
+    #: Billing + routing usage for this request (credits, resolved proxy, cache).
+    usage: Usage
+
+
+@dataclass
 class ScrapeResponse:
     """Successful response from ``POST /api/scrape`` and
     ``GET /api/scrape/result/:jobId``."""
@@ -198,5 +206,7 @@ class ScrapeResponse:
     screenshot: ScreenshotResult | None = None
     #: Extracted page metadata (when ``extract.metadata``, on by default).
     metadata: ScrapeMetadata | None = None
+    #: Request-level metadata: billing + routing usage for this request.
+    response_meta: ScrapeResponseMeta | None = None
     #: Non-error notices about the scrape (stable codes -- safe to switch on).
     warnings: list[str] | None = None

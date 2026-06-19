@@ -25,6 +25,9 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
                     {"text": "Out", "href": "https://other.com", "internal": False},
                 ],
                 "metadata": {"title": "Example", "keywords": ["a", "b"]},
+                "response_meta": {
+                    "usage": {"credits": 1, "proxy": "basic", "cache_hit": False},
+                },
                 "warnings": ["screenshot_truncated"],
             }
         )
@@ -44,7 +47,31 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
     assert page.metadata is not None
     assert page.metadata.title == "Example"
     assert page.metadata.keywords == ["a", "b"]
+    assert page.response_meta is not None
+    assert page.response_meta.usage.credits == 1
+    assert page.response_meta.usage.proxy == "basic"
+    assert page.response_meta.usage.cache_hit is False
     assert page.warnings == ["screenshot_truncated"]
+
+
+def test_scrape_parses_meta_usage_on_cache_hit() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return json_response(
+            {
+                "url": "https://example.com",
+                "markdown": "# cached",
+                "response_meta": {
+                    "usage": {"credits": 0, "proxy": "advanced", "cache_hit": True},
+                },
+            }
+        )
+
+    client = make_sync(handler)
+    page = client.scrape(url="https://example.com")
+    assert page.response_meta is not None
+    assert page.response_meta.usage.credits == 0
+    assert page.response_meta.usage.proxy == "advanced"
+    assert page.response_meta.usage.cache_hit is True
 
 
 def test_scrape_body_omits_none_and_nests_dataclasses() -> None:

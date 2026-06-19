@@ -61,7 +61,8 @@ def test_from_dict_handles_null_for_non_optional_list_field() -> None:
         MapResponse,
         {
             "links": None,
-            "meta": {
+            "response_meta": {
+                "usage": {"credits": 0, "proxy": "none", "cache_hit": True},
                 "pagination": {
                     "page": 1,
                     "limit": 10,
@@ -79,7 +80,7 @@ def test_from_dict_handles_null_for_non_optional_list_field() -> None:
         },
     )
     assert result.links is None
-    assert result.meta.pagination.total == 0
+    assert result.response_meta.pagination.total == 0
 
 
 def test_from_dict_handles_null_for_nested_dataclass_field() -> None:

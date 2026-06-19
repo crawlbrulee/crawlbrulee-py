@@ -10,6 +10,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .common import Usage
+
+
+@dataclass
+class ScrapeCompleteWebhookMeta:
+    """The ``data.response_meta`` block of a ``scrape.complete`` webhook delivery."""
+
+    #: Billing + routing usage for the finished job (credits, resolved proxy, cache).
+    usage: Usage
+
 
 @dataclass
 class ScrapeCompleteWebhookData:
@@ -25,8 +35,11 @@ class ScrapeCompleteWebhookData:
     completed_at: str
     #: Error message, present when ``status == "failed"``.
     error: str | None = None
-    #: Arbitrary metadata echoed back from the original request, when any.
+    #: Arbitrary metadata echoed back from the original request's
+    #: ``webhook.metadata``, when one was supplied.
     metadata: dict[str, Any] | None = None
+    #: Billing + routing usage for the finished job.
+    response_meta: ScrapeCompleteWebhookMeta | None = None
 
 
 @dataclass

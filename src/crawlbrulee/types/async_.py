@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar, Literal
 
+from .common import Usage
+
 #: Job lifecycle states for an async scrape.
 AsyncJobStatus = Literal["pending", "running", "done", "failed"]
 
@@ -15,6 +17,14 @@ class AsyncScrapeResponse:
 
     #: Job identifier -- pass it to ``get_scrape_status`` / ``get_scrape_result``.
     job_id: str
+
+
+@dataclass
+class AsyncStatusMeta:
+    """Request-level metadata on an async status response (``response_meta``)."""
+
+    #: Billing + routing usage for the finished job (credits, resolved proxy, cache).
+    usage: Usage
 
 
 @dataclass
@@ -34,6 +44,8 @@ class AsyncJobStatusResponse:
     created_at: str
     #: Error message if the job ended in ``failed``.
     error: str | None = None
+    #: Billing + routing usage, present only once the job reaches ``done``.
+    response_meta: AsyncStatusMeta | None = None
 
     #: Maps SDK field names to their (camelCase) wire keys for (de)serialization.
     __wire_aliases__: ClassVar[dict[str, str]] = {

@@ -8,12 +8,18 @@ client methods; the nested request shapes (``ScrapeExtract``, ``ScreenshotReques
 from __future__ import annotations
 
 from .account import UsageResponse, WhoamiResponse
-from .async_ import AsyncJobStatus, AsyncJobStatusResponse, AsyncScrapeResponse
+from .async_ import (
+    AsyncJobStatus,
+    AsyncJobStatusResponse,
+    AsyncScrapeResponse,
+    AsyncStatusMeta,
+)
 from .common import (
     ApiErrorName,
     ApiErrorResponse,
     ProxyTier,
     RateLimitErrorDetails,
+    ResolvedProxyTier,
     ScreenshotAfterAction,
     ScreenshotBeforeAction,
     ScreenshotCleanup,
@@ -24,6 +30,7 @@ from .common import (
     ScreenshotType,
     ScreenshotViewport,
     ScreenshotWaitAction,
+    Usage,
     UsageAllocationErrorDetails,
     UsageAllocationReason,
     UsageLimitDetails,
@@ -46,17 +53,23 @@ from .scrape import (
     ScrapeLocation,
     ScrapeMetadata,
     ScrapeResponse,
+    ScrapeResponseMeta,
     ScrapeWebhook,
     ScreenshotProperties,
     ScreenshotResult,
     ScreenshotSlice,
     ScreenshotViewportInfo,
 )
-from .webhooks import ScrapeCompleteWebhook, ScrapeCompleteWebhookData
+from .webhooks import (
+    ScrapeCompleteWebhook,
+    ScrapeCompleteWebhookData,
+    ScrapeCompleteWebhookMeta,
+)
 
 __all__ = [
     # common
     "ProxyTier",
+    "ResolvedProxyTier",
     "ScreenshotType",
     "ScreenshotDeviceMode",
     "ScreenshotCleanup",
@@ -67,6 +80,7 @@ __all__ = [
     "ScreenshotAfterAction",
     "ScreenshotViewport",
     "ScreenshotRequest",
+    "Usage",
     "ApiErrorName",
     "ApiErrorResponse",
     "UsageAllocationReason",
@@ -85,6 +99,7 @@ __all__ = [
     "PageInlineImage",
     "PageLink",
     "ScrapeMetadata",
+    "ScrapeResponseMeta",
     "ScrapeResponse",
     # map
     "MapTypes",
@@ -98,6 +113,7 @@ __all__ = [
     # async
     "AsyncJobStatus",
     "AsyncScrapeResponse",
+    "AsyncStatusMeta",
     "AsyncJobStatusResponse",
     # account
     "UsageResponse",
@@ -105,4 +121,5 @@ __all__ = [
     # webhooks
     "ScrapeCompleteWebhook",
     "ScrapeCompleteWebhookData",
+    "ScrapeCompleteWebhookMeta",
 ]

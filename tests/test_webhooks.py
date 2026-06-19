@@ -16,6 +16,7 @@ from crawlbrulee import (
     ScrapeCompleteWebhookData,
     verify_webhook_signature,
 )
+from crawlbrulee._serde import from_dict
 from crawlbrulee._webhooks import PRIMARY_HEADER, ROTATED_HEADER
 
 SECRET = "whsec_current"
@@ -191,6 +192,22 @@ def _success_webhook_dict(job_id: str = "job_1") -> dict:
             "completed_at": "2026-06-13T00:00:00Z",
         },
     }
+
+
+def test_parse_webhook_metadata_and_usage_meta() -> None:
+    body = _success_webhook_dict("job_77")
+    body["data"]["metadata"] = {"order_id": "abc-123"}
+    body["data"]["response_meta"] = {
+        "usage": {"credits": 1, "proxy": "advanced", "cache_hit": False}
+    }
+
+    wh = from_dict(ScrapeCompleteWebhook, body)
+    assert wh.data.job_id == "job_77"
+    assert wh.data.metadata == {"order_id": "abc-123"}
+    assert wh.data.response_meta is not None
+    assert wh.data.response_meta.usage.credits == 1
+    assert wh.data.response_meta.usage.proxy == "advanced"
+    assert wh.data.response_meta.usage.cache_hit is False
 
 
 def test_fetch_from_webhook_success_dict() -> None:

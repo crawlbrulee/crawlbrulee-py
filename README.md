@@ -35,6 +35,11 @@ page = client.scrape(
 
 print(page.markdown)
 print(len(page.links or []), "links found")
+print(page.metadata.title if page.metadata else None)
+
+# Per-request billing + routing usage rides along on every success:
+if page.response_meta:
+    print(page.response_meta.usage.credits, page.response_meta.usage.proxy, page.response_meta.usage.cache_hit)
 ```
 
 ### Async
@@ -121,6 +126,25 @@ page = client.wait_for_scrape(job.job_id, interval=2.0, timeout=300.0)
 job fails, or `error_name="request_timeout"` if the wait expires (`timeout=0` waits
 forever).
 
+#### The scrape response
+
+A successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
+
+- `metadata` — extracted page metadata (`title`, `description`, OG/Twitter
+  tags, …), present when `extract.metadata` is on (the default).
+- `response_meta.usage` — per-request billing + routing usage:
+  - `credits` — credits charged (`0` on a cache hit).
+  - `proxy` — the proxy tier that actually ran: `"none"`, `"basic"`, or
+    `"advanced"` (the **resolved** tier — `"auto"` is decided server-side and is
+    never echoed here).
+  - `cache_hit` — whether the result was served from cache.
+
+```python
+page = client.scrape(url="https://example.com")
+if page.response_meta and page.response_meta.usage.cache_hit:
+    print("served from cache — 0 credits")
+```
+
 ### Mapping
 
 ```python
@@ -132,7 +156,20 @@ result = client.map(
     page=1,
     limit=1_000,
 )
-print(len(result.links), "of", result.meta.pagination.total_pages, "pages")
+print(len(result.links), "of", result.response_meta.pagination.total_pages, "pages")
+print(result.response_meta.usage.credits, "credits", "(cache hit)" if result.response_meta.usage.cache_hit else "")
+```
+
+`result.response_meta` carries `usage` (credits / resolved `proxy` / `cache_hit`)
+alongside the existing `pagination` and `truncation` blocks.
+
+The async **status** response (`get_scrape_status`) also gains a `response_meta.usage`
+once the job is `done`:
+
+```python
+status = client.get_scrape_status(job_id)
+if status.status == "done" and status.response_meta:
+    print("job cost", status.response_meta.usage.credits, "credits")
 ```
 
 ### Account
@@ -174,9 +211,20 @@ job = client.scrape_async(
 ```
 
 - `url` — http/https endpoint (max 2048 chars). **HTTPS is required in production.**
-- `metadata` — opaque correlation object, echoed back verbatim in the webhook
-  payload's `data.metadata` (max 2048 bytes serialized). Use it to route deliveries
-  without keeping your own `job_id` mapping.
+- `metadata` — opaque metadata object, echoed back verbatim in the webhook
+  payload's `data.metadata` (max 2048 bytes serialized). Use it to route
+  deliveries without keeping your own `job_id` mapping.
+
+The delivered `scrape.complete` payload carries the echoed object on
+`data.metadata`, plus `data.response_meta.usage` (credits / resolved `proxy` /
+`cache_hit`) for the finished job:
+
+```python
+webhook = ScrapeCompleteWebhook(...)  # parsed from the delivery (see below)
+print(webhook.data.metadata)                    # {"order_id": "abc-123"}
+if webhook.data.response_meta:
+    print("job cost", webhook.data.response_meta.usage.credits, "credits")
+```
 
 Deliveries are signed with your **organization** webhook secret (configured in the
 dashboard under Account → Webhooks); there is no per-request secret. Verify and

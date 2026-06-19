@@ -130,6 +130,28 @@ def test_get_scrape_status_maps_camelcase_wire_fields() -> None:
     assert status.status == "running"
     assert status.created_at == "2026-05-28T00:00:00Z"
     assert status.error is None
+    # response_meta is omitted while the job is still in flight.
+    assert status.response_meta is None
+
+
+def test_get_scrape_status_done_carries_usage_meta() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return json_response(
+            {
+                "jobId": "job_123",
+                "status": "done",
+                "createdAt": "2026-05-28T00:00:00Z",
+                "response_meta": {"usage": {"credits": 2, "proxy": "advanced", "cache_hit": False}},
+            }
+        )
+
+    client = make_sync(handler)
+    status = client.get_scrape_status("job_123")
+    assert status.status == "done"
+    assert status.response_meta is not None
+    assert status.response_meta.usage.credits == 2
+    assert status.response_meta.usage.proxy == "advanced"
+    assert status.response_meta.usage.cache_hit is False
 
 
 def test_job_id_is_url_encoded() -> None:

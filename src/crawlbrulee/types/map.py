@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .common import Usage
+
 # --------------------------------------------------------------------------
 # Request shapes (nested; top-level fields are method keyword arguments)
 # --------------------------------------------------------------------------
@@ -78,8 +80,10 @@ class MapTruncation:
 
 @dataclass
 class MapResponseMeta:
-    """Pagination + truncation metadata for a map result set."""
+    """Usage + pagination + truncation metadata for a map result set."""
 
+    #: Billing + routing usage for this request (credits, resolved proxy, cache).
+    usage: Usage
     pagination: MapPagination
     truncation: MapTruncation
 
@@ -91,4 +95,4 @@ class MapResponse:
     #: The current page of discovered URLs.
     links: list[MapLinkItem]
     #: Pagination + truncation metadata for the result set.
-    meta: MapResponseMeta
+    response_meta: MapResponseMeta

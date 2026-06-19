@@ -13,6 +13,11 @@ from typing import Literal, TypedDict
 #: - ``none`` -- skip the proxy entirely. Rejected in production; staging only.
 ProxyTier = Literal["basic", "advanced", "auto", "none"]
 
+#: The proxy tier actually used to route the fetch, as reported back on
+#: ``response_meta.usage.proxy``. Always a concrete tier -- ``auto`` is resolved
+#: server-side to ``basic`` or ``advanced`` and is never echoed here.
+ResolvedProxyTier = Literal["none", "basic", "advanced"]
+
 #: Screenshot capture mode: visible viewport or the full scrollable page.
 ScreenshotType = Literal["viewport", "full_page"]
 
@@ -91,6 +96,23 @@ class ScreenshotRequest:
     actions_before: list[ScreenshotWaitAction | ScreenshotScrollAction] | None = None
     #: Post-capture actions (e.g. slice into tiles). Maximum 1 entry.
     actions_after: list[ScreenshotSliceAction] | None = None
+
+
+@dataclass
+class Usage:
+    """Per-request billing + routing usage, reported on ``response_meta.usage``.
+
+    Returned on every scrape/map success, on a terminal async status, and in the
+    ``scrape.complete`` webhook payload, so callers can attribute spend and see
+    which proxy tier actually ran -- without a separate ``/api/usage`` call.
+    """
+
+    #: Credits charged for this request. ``0`` on a cache hit (nothing fetched).
+    credits: int
+    #: The proxy tier actually used (the resolved tier -- never ``auto``).
+    proxy: ResolvedProxyTier
+    #: Whether the result was served from cache (and so cost ``0`` credits).
+    cache_hit: bool
 
 
 #: Machine-readable error names returned by the crawlbrulee API. Stable
