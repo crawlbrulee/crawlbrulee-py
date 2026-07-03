@@ -7,7 +7,7 @@ The official Python SDK for the [crawlbrulee](https://crawlbrulee.com) web-scrap
 - One runtime dependency: [`httpx`](https://www.python-httpx.org/).
 - Python 3.10+.
 
-> **Status:** v0.3.0 (beta). The API surface is stabilizing — expect minor breaking
+> **Status:** v0.4.0 (beta). The API surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 ---
