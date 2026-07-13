@@ -21,18 +21,18 @@ def make_sync(handler: Handler, *, timeout: float | None = None) -> Crawlbrulee:
     """A sync client whose requests are served by ``handler``."""
     client = httpx.Client(transport=httpx.MockTransport(handler))
     transport = SyncTransport(
-        api_key="cble_test", base_url=BASE_URL, timeout=timeout, client=client
+        api_key="cwbl_test", base_url=BASE_URL, timeout=timeout, client=client
     )
-    return Crawlbrulee("cble_test", transport=transport)
+    return Crawlbrulee("cwbl_test", transport=transport)
 
 
 def make_async(handler: Handler, *, timeout: float | None = None) -> AsyncCrawlbrulee:
     """An async client whose requests are served by ``handler``."""
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     transport = AsyncTransport(
-        api_key="cble_test", base_url=BASE_URL, timeout=timeout, client=client
+        api_key="cwbl_test", base_url=BASE_URL, timeout=timeout, client=client
     )
-    return AsyncCrawlbrulee("cble_test", transport=transport)
+    return AsyncCrawlbrulee("cwbl_test", transport=transport)
 
 
 def json_response(payload: object, status: int = 200) -> httpx.Response:

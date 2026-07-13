@@ -28,23 +28,23 @@ def test_api_key_is_trimmed_and_sent_as_bearer() -> None:
     # Inject a transport but exercise the public header path via a real request.
     client = make_sync(handler)
     client.whoami()
-    assert seen["auth"] == "Bearer cble_test"
+    assert seen["auth"] == "Bearer cwbl_test"
     assert seen["accept"] == "application/json"
     assert seen["ua"].startswith("crawlbrulee-python/")
 
 
 def test_base_url_trailing_slash_stripped() -> None:
-    client = Crawlbrulee("cble_test", base_url="https://example.com/api/")
+    client = Crawlbrulee("cwbl_test", base_url="https://example.com/api/")
     assert client.base_url == "https://example.com/api"
 
 
 def test_default_base_url() -> None:
-    client = Crawlbrulee("cble_test")
+    client = Crawlbrulee("cwbl_test")
     assert client.base_url == "https://api.crawlbrulee.com"
 
 
 def test_from_env_reads_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CRAWLBRULEE_API_KEY", "cble_from_env")
+    monkeypatch.setenv("CRAWLBRULEE_API_KEY", "cwbl_from_env")
     client = Crawlbrulee.from_env()
     assert isinstance(client, Crawlbrulee)
 

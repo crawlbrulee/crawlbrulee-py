@@ -35,10 +35,10 @@ def require_job_id(job_id: str) -> str:
 
 
 def scrape_status_path(job_id: str) -> str:
-    """Path for ``GET /api/scrape/status/:jobId`` with ``job_id`` URL-encoded."""
+    """Path for ``GET /api/scrape/status/:job_id`` with ``job_id`` URL-encoded."""
     return f"/api/scrape/status/{quote(job_id, safe='')}"
 
 
 def scrape_result_path(job_id: str) -> str:
-    """Path for ``GET /api/scrape/result/:jobId`` with ``job_id`` URL-encoded."""
+    """Path for ``GET /api/scrape/result/:job_id`` with ``job_id`` URL-encoded."""
     return f"/api/scrape/result/{quote(job_id, safe='')}"

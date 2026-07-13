@@ -39,7 +39,7 @@ class AsyncCrawlbrulee:
 
         from crawlbrulee import AsyncCrawlbrulee
 
-        async with AsyncCrawlbrulee(api_key="cble_…") as client:
+        async with AsyncCrawlbrulee(api_key="cwbl_…") as client:
             page = await client.scrape(
                 url="https://example.com",
                 extract=ScrapeExtract(markdown=True, links=True),

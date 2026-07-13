@@ -117,11 +117,11 @@ async def test_async_client_scrape_async_without_webhook_omits_field() -> None:
     assert "webhook" not in captured["body"]
 
 
-def test_get_scrape_status_maps_camelcase_wire_fields() -> None:
+def test_get_scrape_status_reads_snake_case_wire_fields() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/scrape/status/job_123"
         return json_response(
-            {"jobId": "job_123", "status": "running", "createdAt": "2026-05-28T00:00:00Z"}
+            {"job_id": "job_123", "status": "running", "created_at": "2026-05-28T00:00:00Z"}
         )
 
     client = make_sync(handler)
@@ -138,9 +138,9 @@ def test_get_scrape_status_done_carries_usage_meta() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return json_response(
             {
-                "jobId": "job_123",
+                "job_id": "job_123",
                 "status": "done",
-                "createdAt": "2026-05-28T00:00:00Z",
+                "created_at": "2026-05-28T00:00:00Z",
                 "response_meta": {"usage": {"credits": 2, "proxy": "advanced", "cache_hit": False}},
             }
         )
@@ -160,7 +160,7 @@ def test_job_id_is_url_encoded() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         # raw_path keeps the percent-encoding (url.path would decode %2F back to /).
         seen["raw_path"] = request.url.raw_path
-        return json_response({"jobId": "a/b", "status": "done", "createdAt": "t"})
+        return json_response({"job_id": "a/b", "status": "done", "created_at": "t"})
 
     client = make_sync(handler)
     client.get_scrape_status("a/b")
@@ -180,7 +180,7 @@ def test_wait_for_scrape_polls_until_done() -> None:
         if request.url.path.startswith("/api/scrape/status/"):
             calls["status"] += 1
             state = "pending" if calls["status"] < 3 else "done"
-            return json_response({"jobId": "j1", "status": state, "createdAt": "t"})
+            return json_response({"job_id": "j1", "status": state, "created_at": "t"})
         if request.url.path == "/api/scrape/result/j1":
             return json_response({"url": "https://example.com", "markdown": "done!"})
         raise AssertionError(request.url.path)
@@ -193,7 +193,9 @@ def test_wait_for_scrape_polls_until_done() -> None:
 
 def test_wait_for_scrape_failed_raises_job_failed() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        return json_response({"jobId": "j1", "status": "failed", "createdAt": "t", "error": "boom"})
+        return json_response(
+            {"job_id": "j1", "status": "failed", "created_at": "t", "error": "boom"}
+        )
 
     client = make_sync(handler)
     with pytest.raises(CrawlbruleeError) as excinfo:
@@ -204,7 +206,7 @@ def test_wait_for_scrape_failed_raises_job_failed() -> None:
 
 def test_wait_for_scrape_timeout_raises_request_timeout() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        return json_response({"jobId": "j1", "status": "pending", "createdAt": "t"})
+        return json_response({"job_id": "j1", "status": "pending", "created_at": "t"})
 
     client = make_sync(handler)
     with pytest.raises(CrawlbruleeError) as excinfo:
@@ -230,7 +232,7 @@ async def test_async_client_wait_for_scrape() -> None:
         if request.url.path.startswith("/api/scrape/status/"):
             calls["status"] += 1
             state = "running" if calls["status"] < 2 else "done"
-            return json_response({"jobId": "j1", "status": state, "createdAt": "t"})
+            return json_response({"job_id": "j1", "status": state, "created_at": "t"})
         return json_response({"url": "https://example.com", "markdown": "ok"})
 
     async with make_async(handler) as client:

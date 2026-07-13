@@ -4,7 +4,7 @@ Most usage starts with :class:`Crawlbrulee` (sync) or :class:`AsyncCrawlbrulee`:
 
     from crawlbrulee import Crawlbrulee
 
-    client = Crawlbrulee(api_key="cble_…")
+    client = Crawlbrulee(api_key="cwbl_…")
     # or read CRAWLBRULEE_API_KEY from the environment:
     client = Crawlbrulee.from_env()
 

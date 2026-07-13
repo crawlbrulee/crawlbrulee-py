@@ -37,7 +37,7 @@ def test_whoami() -> None:
             {
                 "organization_name": "Acme",
                 "token_name": "ci-key",
-                "token_preview": "cble_…xyz",
+                "token_preview": "cwbl_…xyz",
             }
         )
 
@@ -45,4 +45,4 @@ def test_whoami() -> None:
     who = client.whoami()
     assert who.organization_name == "Acme"
     assert who.token_name == "ci-key"
-    assert who.token_preview == "cble_…xyz"
+    assert who.token_preview == "cwbl_…xyz"

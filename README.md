@@ -7,7 +7,7 @@ The official Python SDK for the [crawlbrulee](https://crawlbrulee.com) web-scrap
 - One runtime dependency: [`httpx`](https://www.python-httpx.org/).
 - Python 3.10+.
 
-> **Status:** v0.4.0 (beta). The API surface is stabilizing — expect minor breaking
+> **Status:** v0.5.0 (beta). The API surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 ---
@@ -24,7 +24,7 @@ pip install crawlbrulee
 ```python
 from crawlbrulee import Crawlbrulee, ScrapeExtract
 
-client = Crawlbrulee(api_key="cble_…")
+client = Crawlbrulee(api_key="cwbl_…")
 # or read CRAWLBRULEE_API_KEY from the environment:
 client = Crawlbrulee.from_env()
 
@@ -316,9 +316,9 @@ For exhaustive branching, switch on `err.error_name`.
 
 ## Notes on the wire format
 
-The SDK mirrors the API's JSON shapes faithfully. The one exception: the async job
-**status** response uses camelCase on the wire (`jobId`, `createdAt`); the SDK
-exposes Pythonic `job_id` / `created_at` on `AsyncJobStatusResponse`.
+The SDK mirrors the API's JSON shapes faithfully. Every endpoint — including the
+async job **status** response (`job_id`, `created_at`) — is snake_case on the
+wire, and the SDK field names match it 1:1.
 
 ---
 

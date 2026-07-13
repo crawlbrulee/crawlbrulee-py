@@ -5,6 +5,26 @@ All notable changes to this project are documented here. The format is based on
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (`0.x` releases may
 carry breaking changes between minor versions while the API stabilizes).
 
+## [0.5.0] — 2026-07-13
+
+### Fixed
+
+- **Async status fields now deserialize correctly.** `AsyncJobStatusResponse.job_id`
+  and `.created_at` were being read from the pre-June camelCase wire keys
+  (`jobId`, `createdAt`) and came back unset against the live API, which has been
+  fully snake_case since 2026-06-13. The SDK now mirrors the snake_case wire 1:1
+  (no case mapping). Public attribute names are unchanged, so this is invisible to
+  callers — the fields simply populate again.
+
+### Changed
+
+- **Default proxy tier is `auto`.** Docs/type comments now describe the omitted-`proxy`
+  default as `auto` (tries the basic tier first, escalates to advanced on failure;
+  billed at the delivered tier) instead of `basic`. No behavioral change — the
+  client still omits `proxy` when unset and lets the server default apply.
+- **API token prefix is `cwbl_`.** Docstring and README examples use the new
+  `cwbl_` token prefix (was `cble_`). Existing `cble_` tokens keep authenticating.
+
 ## [0.4.0] — 2026-07-03
 
 ### Added

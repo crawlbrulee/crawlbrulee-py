@@ -7,9 +7,10 @@ from typing import Literal, TypedDict
 
 #: Proxy tier used to route the fetch.
 #:
-#: - ``basic`` -- datacenter proxy, lowest cost (default).
+#: - ``basic`` -- datacenter proxy, lowest cost.
 #: - ``advanced`` -- residential proxy, higher success rate on protected sites.
-#: - ``auto`` -- let crawlbrulee pick the right tier per target.
+#: - ``auto`` -- tries the basic tier first and escalates to advanced on failure;
+#:   billed at the delivered tier (default).
 #: - ``none`` -- skip the proxy entirely. Rejected in production; staging only.
 ProxyTier = Literal["basic", "advanced", "auto", "none"]
 

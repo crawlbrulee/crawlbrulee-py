@@ -2,11 +2,28 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import ClassVar
+
 from crawlbrulee._serde import from_dict, to_dict
 from crawlbrulee.types.async_ import AsyncJobStatusResponse
 from crawlbrulee.types.common import ScreenshotRequest, ScreenshotWaitAction
 from crawlbrulee.types.map import MapResponse
 from crawlbrulee.types.scrape import ScrapeExtract, ScrapeResponse
+
+
+@dataclass
+class _Aliased:
+    """Throwaway dataclass exercising the generic ``__wire_aliases__`` machinery.
+
+    No production type currently maps field names to differently-cased wire keys
+    (the whole API is snake_case 1:1), so this local fixture keeps the alias
+    branch of ``to_dict`` / ``from_dict`` covered on its own terms.
+    """
+
+    snake_field: str
+    plain: str
+    __wire_aliases__: ClassVar[dict[str, str]] = {"snake_field": "wireField"}
 
 
 def test_to_dict_omits_none_and_recurses() -> None:
@@ -41,18 +58,26 @@ def test_from_dict_ignores_unknown_keys() -> None:
 
 
 def test_from_dict_applies_wire_aliases() -> None:
+    obj = from_dict(_Aliased, {"wireField": "v9", "plain": "p"})
+    assert obj.snake_field == "v9"
+    assert obj.plain == "p"
+
+
+def test_to_dict_applies_wire_aliases() -> None:
+    obj = _Aliased(snake_field="v9", plain="p")
+    assert to_dict(obj) == {"wireField": "v9", "plain": "p"}
+
+
+def test_async_status_uses_snake_case_wire_1to1() -> None:
+    # The async status endpoint is snake_case on the wire like everything else;
+    # no case mapping is applied.
     status = from_dict(
         AsyncJobStatusResponse,
-        {"jobId": "j9", "status": "done", "createdAt": "2026-01-01T00:00:00Z"},
+        {"job_id": "j9", "status": "done", "created_at": "2026-01-01T00:00:00Z"},
     )
     assert status.job_id == "j9"
     assert status.created_at == "2026-01-01T00:00:00Z"
     assert status.status == "done"
-
-
-def test_to_dict_applies_wire_aliases() -> None:
-    status = AsyncJobStatusResponse(job_id="j9", status="done", created_at="t")
-    assert to_dict(status) == {"jobId": "j9", "status": "done", "createdAt": "t"}
 
 
 def test_from_dict_handles_null_for_non_optional_list_field() -> None:

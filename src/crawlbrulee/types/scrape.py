@@ -184,7 +184,7 @@ class ScrapeResponseMeta:
 @dataclass
 class ScrapeResponse:
     """Successful response from ``POST /api/scrape`` and
-    ``GET /api/scrape/result/:jobId``."""
+    ``GET /api/scrape/result/:job_id``."""
 
     #: The URL that was actually scraped (after any redirects).
     url: str

@@ -38,7 +38,7 @@ class Crawlbrulee:
 
         from crawlbrulee import Crawlbrulee
 
-        with Crawlbrulee(api_key="cble_…") as client:
+        with Crawlbrulee(api_key="cwbl_…") as client:
             page = client.scrape(
                 url="https://example.com",
                 extract=ScrapeExtract(markdown=True, links=True),

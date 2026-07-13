@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, Literal
+from typing import Literal
 
 from .common import Usage
 
@@ -29,11 +29,10 @@ class AsyncStatusMeta:
 
 @dataclass
 class AsyncJobStatusResponse:
-    """Response body of ``GET /api/scrape/status/:jobId``.
+    """Response body of ``GET /api/scrape/status/:job_id``.
 
-    The wire format uses camelCase (``jobId``, ``createdAt``) for this one
-    endpoint while the rest of the API uses snake_case. The SDK exposes Pythonic
-    ``job_id`` / ``created_at`` attributes and maps them via ``__wire_aliases__``.
+    Field names mirror the snake_case wire format 1:1 (``job_id``,
+    ``created_at``), like the rest of the API.
     """
 
     #: The job identifier.
@@ -46,9 +45,3 @@ class AsyncJobStatusResponse:
     error: str | None = None
     #: Billing + routing usage, present only once the job reaches ``done``.
     response_meta: AsyncStatusMeta | None = None
-
-    #: Maps SDK field names to their (camelCase) wire keys for (de)serialization.
-    __wire_aliases__: ClassVar[dict[str, str]] = {
-        "job_id": "jobId",
-        "created_at": "createdAt",
-    }

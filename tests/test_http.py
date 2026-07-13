@@ -12,7 +12,7 @@ from crawlbrulee._http import SyncTransport
 
 def _transport(handler: object) -> SyncTransport:
     client = httpx.Client(transport=httpx.MockTransport(handler))  # type: ignore[arg-type]
-    return SyncTransport(api_key="cble_test", base_url=BASE_URL, client=client)
+    return SyncTransport(api_key="cwbl_test", base_url=BASE_URL, client=client)
 
 
 def test_non_json_body_raises_transport_error() -> None:
@@ -57,7 +57,7 @@ def test_timeout_maps_to_transport_error() -> None:
         raise httpx.ReadTimeout("timed out", request=request)
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    transport = SyncTransport(api_key="cble_test", base_url=BASE_URL, timeout=2.5, client=client)
+    transport = SyncTransport(api_key="cwbl_test", base_url=BASE_URL, timeout=2.5, client=client)
     with pytest.raises(TransportError) as excinfo:
         transport.request("GET", "/api/whoami")
     assert excinfo.value.error_name == "request_timeout"
