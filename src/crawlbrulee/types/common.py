@@ -75,10 +75,15 @@ ScreenshotAfterAction = ScreenshotSliceAction
 class ScreenshotViewport:
     """Custom browser viewport dimensions used during a screenshot capture."""
 
+    #: Viewport width in pixels. Integer in ``[16, 10000]``; out-of-range values
+    #: are rejected with a 400.
     width: int
+    #: Viewport height in pixels. Integer in ``[16, 10000]``; out-of-range values
+    #: are rejected with a 400.
     height: int
-    #: Device pixel ratio (e.g. 2 for retina). Defaults to 1 server-side.
-    device_scale_factor: int | None = None
+    #: Device pixel ratio (e.g. 2 for retina). Fractional values are allowed;
+    #: must be in ``[1, 4]``. Defaults to 1 server-side.
+    device_scale_factor: float | None = None
 
 
 @dataclass

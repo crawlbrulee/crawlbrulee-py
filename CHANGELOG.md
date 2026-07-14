@@ -5,6 +5,30 @@ All notable changes to this project are documented here. The format is based on
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (`0.x` releases may
 carry breaking changes between minor versions while the API stabilizes).
 
+## [0.6.0] — 2026-07-13
+
+### Changed
+
+- **Screenshots.** In the rare case a screenshot can't be captured, the rest of your
+  requested outputs are still returned and the screenshot is simply left out, so
+  `page.screenshot` is `None`. `ScrapeResponse.screenshot` was already `Optional`; the
+  docstring and README now say so explicitly — guard for it (`page.screenshot and page.screenshot.url`).
+- **Custom screenshot viewport is bounded.** `ScreenshotViewport.width`/`height`
+  are integers in `[16, 10000]`; `device_scale_factor` is in `[1, 4]` and now
+  **accepts fractional values** (type widened from `int` to `float`). Out-of-range
+  values are rejected server-side with a `400`. The returned
+  `ScreenshotViewportInfo.device_scale_factor` is likewise typed `float`.
+- **`extract.images` output.** Image URLs now preserve their query string and
+  resolve document-relative `src`s against the full page URL (browser parity) —
+  the same rules as the links extractor. Output-only change; `PageInlineImage` is
+  unchanged, and its docstring notes the new behavior.
+
+### Docs
+
+- Documented per-plan rate limits with separate sync/async buckets (Free 50/100,
+  Starter 100/300, Pro 350/1000, Advanced 1000/3000). Sync `scrape()` and `map()`
+  share the sync bucket; `scrape_async()` has its own.
+
 ## [0.5.0] — 2026-07-13
 
 ### Fixed

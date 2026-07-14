@@ -27,7 +27,9 @@ class ScrapeExtract:
     raw_html: bool | None = None
     #: Extract all links found on the page. Default ``False``.
     links: bool | None = None
-    #: Extract all inline images found on the page. Default ``False``.
+    #: Extract all inline images found on the page. Default ``False``. Image URLs
+    #: preserve their query string, and document-relative ``src``s are resolved
+    #: against the full page URL (browser parity) -- the same rules as ``links``.
     images: bool | None = None
     #: Capture a screenshot. Omit to skip; set a ``ScreenshotRequest`` to enable.
     screenshot: ScreenshotRequest | None = None
@@ -87,7 +89,8 @@ class ScreenshotViewportInfo:
 
     width: int
     height: int
-    device_scale_factor: int
+    #: Device pixel ratio used for the capture (may be fractional).
+    device_scale_factor: float
 
 
 @dataclass
@@ -126,6 +129,8 @@ class ScreenshotResult:
 class PageInlineImage:
     """A single inline image discovered on the page."""
 
+    #: Absolute URL of the image, query string preserved. Document-relative
+    #: ``src``s are resolved against the full page URL (browser parity).
     url: str
     #: Alt text of the image, or ``None`` if not set.
     alt: str | None = None
@@ -202,7 +207,9 @@ class ScrapeResponse:
     images: list[PageInlineImage] | None = None
     #: Links discovered on the page (when ``extract.links``).
     links: list[PageLink] | None = None
-    #: Captured screenshot (when ``extract.screenshot``).
+    #: Captured screenshot (when ``extract.screenshot``). In rare cases a screenshot
+    #: can't be captured; when that happens the rest of your requested outputs are
+    #: still returned and this is simply left out, so it reads back as ``None``.
     screenshot: ScreenshotResult | None = None
     #: Extracted page metadata (when ``extract.metadata``, on by default).
     metadata: ScrapeMetadata | None = None

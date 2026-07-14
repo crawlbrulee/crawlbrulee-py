@@ -7,7 +7,7 @@ The official Python SDK for the [crawlbrulee](https://crawlbrulee.com) web-scrap
 - One runtime dependency: [`httpx`](https://www.python-httpx.org/).
 - Python 3.10+.
 
-> **Status:** v0.5.0 (beta). The API surface is stabilizing — expect minor breaking
+> **Status:** v0.6.0 (beta). The API surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 ---
@@ -100,6 +100,19 @@ client.scrape(
 
 `None`-valued options are omitted from the request entirely, so the server's
 defaults apply.
+
+**Notes:**
+
+- **`proxy` defaults to `auto`** when omitted — it starts at the basic tier and
+  escalates to advanced on failure, billed at the delivered tier. Pass `"basic"`,
+  `"advanced"`, or `"none"` to pin a tier.
+- **Screenshots.** In rare cases a screenshot can't be captured; when that happens the
+  rest of your requested outputs are still returned and the screenshot is simply left out,
+  so `page.screenshot` is `None` — guard for it (`page.screenshot and page.screenshot.url`). Custom `viewport.width`/`height` are
+  integers in `[16, 10000]` and `device_scale_factor` is in `[1, 4]` (fractional
+  allowed); out-of-range values are rejected with a `400`.
+- **`extract.images`** URLs preserve their query string and resolve document-relative
+  `src`s against the full page URL (browser parity) — the same rules as `links`.
 
 ---
 
@@ -311,6 +324,22 @@ except UsageAllocationError as err:
 ```
 
 For exhaustive branching, switch on `err.error_name`.
+
+### Rate limits
+
+Limits are per-plan, with **separate buckets for sync and async** (requests per
+minute). Synchronous `scrape()` **and** `map()` count against the sync bucket;
+`scrape_async()` submissions have their own bucket.
+
+| Plan     | Sync (rpm) | Async (rpm) |
+| -------- | ---------- | ----------- |
+| Free     | 50         | 100         |
+| Starter  | 100        | 300         |
+| Pro      | 350        | 1000        |
+| Advanced | 1000       | 3000        |
+
+Exceeding a bucket returns `429`; the SDK raises `RateLimitError` — read
+`retry_after_ms` to back off.
 
 ---
 
