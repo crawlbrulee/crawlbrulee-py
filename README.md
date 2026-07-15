@@ -117,8 +117,8 @@ defaults apply.
 **notes:**
 
 - **`proxy` defaults to `auto`** when omitted — it starts at the basic tier and
-  escalates to advanced on failure, billed at the delivered tier. pass `"basic"`,
-  `"advanced"`, or `"none"` to pin a tier. see
+  escalates to advanced on failure, billed at the delivered tier. pass `"basic"`
+  or `"advanced"` to pin a tier. see
   [proxies & location](https://crawlbrulee.com/docs/proxies) for what each tier does.
 - **screenshots.** in rare cases a screenshot can't be captured; when that happens the
   rest of your requested outputs are still returned and the screenshot is simply left out,
@@ -168,9 +168,9 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   tags, …), present when `extract.metadata` is on (the default).
 - `response_meta.usage` — per-request billing + routing usage:
   - `credits` — credits charged (`0` on a cache hit).
-  - `proxy` — the proxy tier that actually ran: `"none"`, `"basic"`, or
-    `"advanced"` (the **resolved** tier — `"auto"` is decided server-side and is
-    never echoed here).
+  - `proxy` — the proxy tier that actually ran: `"basic"` or `"advanced"` (the
+    **resolved** tier — `"auto"` is decided server-side and is never echoed
+    here).
   - `cache_hit` — whether the result was served from cache.
 - `warnings` — a list of stable string codes flagging something worth noting on an
   otherwise-successful scrape (e.g. `screenshot_truncated` when a long page exceeded the

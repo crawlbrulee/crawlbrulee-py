@@ -44,7 +44,7 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
 - **`response_meta.usage` on every success.** `ScrapeResponse` and `MapResponse` now expose a
   `response_meta.usage` block (`Usage`) with the per-request billing + routing details:
   - `credits` — credits charged (`0` on a cache hit).
-  - `proxy` — the proxy tier that actually ran (`"none"` / `"basic"` / `"advanced"`). this is the
+  - `proxy` — the proxy tier that actually ran (`"basic"` / `"advanced"`). this is the
     **resolved** tier; `"auto"` is decided server-side and is never echoed back
     (`ResolvedProxyTier`).
   - `cache_hit` — whether the result was served from cache.

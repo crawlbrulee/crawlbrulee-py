@@ -11,13 +11,12 @@ from typing import Literal, TypedDict
 #: - ``advanced`` -- residential proxy, higher success rate on protected sites.
 #: - ``auto`` -- tries the basic tier first and escalates to advanced on failure;
 #:   billed at the delivered tier (default).
-#: - ``none`` -- skip the proxy entirely. Rejected in production; staging only.
-ProxyTier = Literal["basic", "advanced", "auto", "none"]
+ProxyTier = Literal["basic", "advanced", "auto"]
 
 #: The proxy tier actually used to route the fetch, as reported back on
 #: ``response_meta.usage.proxy``. Always a concrete tier -- ``auto`` is resolved
 #: server-side to ``basic`` or ``advanced`` and is never echoed here.
-ResolvedProxyTier = Literal["none", "basic", "advanced"]
+ResolvedProxyTier = Literal["basic", "advanced"]
 
 #: Screenshot capture mode: visible viewport or the full scrollable page.
 ScreenshotType = Literal["viewport", "full_page"]
