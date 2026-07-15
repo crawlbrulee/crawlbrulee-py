@@ -1,25 +1,37 @@
-# crawlbrulee
+# 🍮 crawlbrulee python sdk
 
-The official Python SDK for the [crawlbrulee](https://crawlbrulee.com) web-scraping API.
+[![pypi](https://img.shields.io/pypi/v/crawlbrulee?style=flat-square&label=pypi)](https://pypi.org/project/crawlbrulee/)
+[![python](https://img.shields.io/pypi/pyversions/crawlbrulee?style=flat-square&label=python)](https://pypi.org/project/crawlbrulee/)
+[![license](https://img.shields.io/pypi/l/crawlbrulee?style=flat-square&label=license)](./LICENSE)
 
-- Fully typed (ships `py.typed`).
-- Sync **and** async clients (`Crawlbrulee` / `AsyncCrawlbrulee`).
-- One runtime dependency: [`httpx`](https://www.python-httpx.org/).
+the official python sdk for the [crawlbrulee](https://crawlbrulee.com) web-scraping api.
+you send a url, you get back markdown, cleaned html, links, images, metadata, or a
+screenshot — with per-request usage accounting on every response.
+
+- fully typed (ships `py.typed`).
+- sync **and** async clients (`Crawlbrulee` / `AsyncCrawlbrulee`).
+- one runtime dependency: [`httpx`](https://www.python-httpx.org/).
 - Python 3.10+.
 
-> **Status:** v0.6.0 (beta). The API surface is stabilizing — expect minor breaking
+this readme covers the sdk itself — the clients, the types, and the python-side ergonomics.
+for how the api behaves — endpoints, parameters, and error semantics — please see our
+[api docs](https://crawlbrulee.com/docs).
+
+> **status:** v0.6.0 (beta). the api surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
+
+**get a free api key** → [dashboard.crawlbrulee.com](https://dashboard.crawlbrulee.com)
 
 ---
 
-## Install
+## install
 
 ```bash
 pip install crawlbrulee
 # or: uv add crawlbrulee
 ```
 
-## Quickstart
+## quickstart
 
 ```python
 from crawlbrulee import Crawlbrulee, ScrapeExtract
@@ -42,9 +54,9 @@ if page.response_meta:
     print(page.response_meta.usage.credits, page.response_meta.usage.proxy, page.response_meta.usage.cache_hit)
 ```
 
-### Async
+### async
 
-The async client mirrors the sync one method-for-method:
+the async client mirrors the sync one method-for-method:
 
 ```python
 import asyncio
@@ -58,25 +70,26 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-### Configuration
+### configuration
 
-| Option     | Default                        | Description                                                                  |
+| option     | default                        | description                                                                  |
 | ---------- | ------------------------------ | ---------------------------------------------------------------------------- |
-| `api_key`  | —                              | Sent as `Authorization: Bearer …`. **Required** — or use `from_env()`.       |
-| `base_url` | `https://api.crawlbrulee.com`  | Override the target host (local dev / staging). Trailing slashes stripped.   |
-| `timeout`  | `None` (no timeout)            | Per-request timeout in **seconds**. A per-call `timeout=` overrides it.      |
+| `api_key`  | —                              | sent as `Authorization: Bearer …`. **required** — or use `from_env()`.       |
+| `base_url` | `https://api.crawlbrulee.com`  | override the target host (local dev / staging). trailing slashes stripped.   |
+| `timeout`  | `None` (no timeout)            | per-request timeout in **seconds**. a per-call `timeout=` overrides it.      |
 
 `Crawlbrulee.from_env(**overrides)` reads the key from `CRAWLBRULEE_API_KEY` and
-forwards any other option through.
+forwards any other option through. keys are minted in the dashboard; see
+[authentication](https://crawlbrulee.com/docs/authentication) for how the api consumes them.
 
-Both clients support context managers (`with` / `async with`) and expose
+both clients support context managers (`with` / `async with`) and expose
 `close()` / `aclose()` to release the connection pool.
 
 ---
 
-## Request inputs
+## request inputs
 
-Top-level request fields are plain keyword arguments. Nested structures are typed
+top-level request fields are plain keyword arguments. nested structures are typed
 dataclasses (importable from `crawlbrulee`) — or plain `dict`s, if you prefer:
 
 ```python
@@ -101,34 +114,41 @@ client.scrape(
 `None`-valued options are omitted from the request entirely, so the server's
 defaults apply.
 
-**Notes:**
+**notes:**
 
 - **`proxy` defaults to `auto`** when omitted — it starts at the basic tier and
-  escalates to advanced on failure, billed at the delivered tier. Pass `"basic"`,
-  `"advanced"`, or `"none"` to pin a tier.
-- **Screenshots.** In rare cases a screenshot can't be captured; when that happens the
+  escalates to advanced on failure, billed at the delivered tier. pass `"basic"`,
+  `"advanced"`, or `"none"` to pin a tier. see
+  [proxies & location](https://crawlbrulee.com/docs/proxies) for what each tier does.
+- **screenshots.** in rare cases a screenshot can't be captured; when that happens the
   rest of your requested outputs are still returned and the screenshot is simply left out,
-  so `page.screenshot` is `None` — guard for it (`page.screenshot and page.screenshot.url`). Custom `viewport.width`/`height` are
+  so `page.screenshot` is `None` — guard for it (`page.screenshot and page.screenshot.url`). custom `viewport.width`/`height` are
   integers in `[16, 10000]` and `device_scale_factor` is in `[1, 4]` (fractional
-  allowed); out-of-range values are rejected with a `400`.
-- **`extract.images`** URLs preserve their query string and resolve document-relative
-  `src`s against the full page URL (browser parity) — the same rules as `links`.
+  allowed); out-of-range values are rejected with a `400`. full capture options:
+  [screenshots](https://crawlbrulee.com/docs/scrape/screenshots).
+- **`extract.images`** urls preserve their query string and resolve document-relative
+  `src`s against the full page url (browser parity) — the same rules as `links`.
+  every extract field is documented under
+  [extraction](https://crawlbrulee.com/docs/scrape/extraction).
+
+for the complete request contract — every field, its defaults, and its constraints — see the
+[scrape endpoint](https://crawlbrulee.com/docs/scrape) reference.
 
 ---
 
-## API reference
+## api reference
 
-Every method returns a typed dataclass and accepts a per-call `timeout=` (seconds).
+every method returns a typed dataclass and accepts a per-call `timeout=` (seconds).
 
-### Scraping
+### scraping
 
-| Method | Description |
+| method | description |
 | --- | --- |
-| `scrape(url, **opts)` | Scrape a URL synchronously; blocks until done. |
-| `scrape_async(url, **opts)` | Submit a background job; returns `{ job_id }` immediately. |
-| `get_scrape_status(job_id)` | Current job state — `pending` / `running` / `done` / `failed`. |
-| `get_scrape_result(job_id)` | Result of a completed job (raises if not finished). |
-| `wait_for_scrape(job_id, interval=2.0, timeout=300.0)` | Poll until terminal, then return the result. |
+| `scrape(url, **opts)` | scrape a url synchronously; blocks until done. |
+| `scrape_async(url, **opts)` | submit a background job; returns `{ job_id }` immediately. |
+| `get_scrape_status(job_id)` | current job state — `pending` / `running` / `done` / `failed`. |
+| `get_scrape_result(job_id)` | result of a completed job (raises if not finished). |
+| `wait_for_scrape(job_id, interval=2.0, timeout=300.0)` | poll until terminal, then return the result. |
 
 ```python
 job = client.scrape_async(url="https://example.com")
@@ -137,11 +157,12 @@ page = client.wait_for_scrape(job.job_id, interval=2.0, timeout=300.0)
 
 `wait_for_scrape` raises a `CrawlbruleeError` with `error_name="job_failed"` if the
 job fails, or `error_name="request_timeout"` if the wait expires (`timeout=0` waits
-forever).
+forever). the job lifecycle itself — states, retention, and when to prefer async over
+sync — is documented under [async scrape](https://crawlbrulee.com/docs/scrape/async).
 
-#### The scrape response
+#### the scrape response
 
-A successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
+a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 
 - `metadata` — extracted page metadata (`title`, `description`, OG/Twitter
   tags, …), present when `extract.metadata` is on (the default).
@@ -151,6 +172,12 @@ A successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
     `"advanced"` (the **resolved** tier — `"auto"` is decided server-side and is
     never echoed here).
   - `cache_hit` — whether the result was served from cache.
+- `warnings` — a list of stable string codes flagging something worth noting on an
+  otherwise-successful scrape (e.g. `screenshot_truncated` when a long page exceeded the
+  scrolling-screenshot height cap). safe to switch on. fresh scrapes only — cache hits omit them.
+- `unsupported_fields` — if you request an extract that doesn't apply to the content type
+  (e.g. `markdown` of a pdf), that field name comes back here and the rest of your payload is
+  still returned.
 
 ```python
 page = client.scrape(url="https://example.com")
@@ -158,7 +185,7 @@ if page.response_meta and page.response_meta.usage.cache_hit:
     print("served from cache — 0 credits")
 ```
 
-### Mapping
+### mapping
 
 ```python
 result = client.map(
@@ -174,9 +201,11 @@ print(result.response_meta.usage.credits, "credits", "(cache hit)" if result.res
 ```
 
 `result.response_meta` carries `usage` (credits / resolved `proxy` / `cache_hit`)
-alongside the existing `pagination` and `truncation` blocks.
+alongside the existing `pagination` and `truncation` blocks. see the
+[map endpoint](https://crawlbrulee.com/docs/map) for discovery rules and pagination
+semantics.
 
-The async **status** response (`get_scrape_status`) also gains a `response_meta.usage`
+the async **status** response (`get_scrape_status`) also gains a `response_meta.usage`
 once the job is `done`:
 
 ```python
@@ -185,26 +214,35 @@ if status.status == "done" and status.response_meta:
     print("job cost", status.response_meta.usage.credits, "credits")
 ```
 
-### Account
+### account
 
-| Method | Description |
+| method | description |
 | --- | --- |
-| `usage()` | Current billing-cycle snapshot — credits, quota %, concurrency, reset time. |
-| `whoami()` | Organization + token identity behind the API key. |
+| `usage()` | current billing-cycle snapshot — credits, quota %, concurrency, reset time. |
+| `whoami()` | organization + token identity behind the api key. |
+
+what a call costs, and how credits are counted, is documented under
+[credits & pricing](https://crawlbrulee.com/docs/credits-and-pricing).
 
 ---
 
-## Webhooks
+## webhooks
 
-If you configure a webhook endpoint, the API POSTs a `scrape.complete` delivery
-when an async scrape job reaches a terminal state. Each delivery is signed with
+if you configure a webhook endpoint, the api POSTs a `scrape.complete` delivery
+when an async scrape job reaches a terminal state. each delivery is signed with
 HMAC-SHA256 in the `X-Cwbl-Signature` header (`t=<unix_seconds>,v1=<hex>`), over
 the `{timestamp}.{raw_body}` payload.
 
-### Triggering a webhook
+the delivery contract and payload shape live under
+[webhooks](https://crawlbrulee.com/docs/scrape/webhooks); the signature scheme is specified in
+[webhook verification](https://crawlbrulee.com/docs/webhook-verification). what follows is how
+this sdk helps you consume them.
 
-Pass `webhook=` to `scrape_async` to tell the API where to deliver the
-`scrape.complete` POST for that job. This is **async-only** — the sync `scrape()`
+
+### triggering a webhook
+
+pass `webhook=` to `scrape_async` to tell the api where to deliver the
+`scrape.complete` POST for that job. this is **async-only** — the sync `scrape()`
 response *is* the result, so it has no `webhook` parameter.
 
 ```python
@@ -223,12 +261,12 @@ job = client.scrape_async(
 # webhook={"url": "https://your-app.example.com/webhooks/crawlbrulee"}
 ```
 
-- `url` — http/https endpoint (max 2048 chars). **HTTPS is required in production.**
+- `url` — http/https endpoint (max 2048 chars). **https is required in production.**
 - `metadata` — opaque metadata object, echoed back verbatim in the webhook
-  payload's `data.metadata` (max 2048 bytes serialized). Use it to route
+  payload's `data.metadata` (max 2048 bytes serialized). use it to route
   deliveries without keeping your own `job_id` mapping.
 
-The delivered `scrape.complete` payload carries the echoed object on
+the delivered `scrape.complete` payload carries the echoed object on
 `data.metadata`, plus `data.response_meta.usage` (credits / resolved `proxy` /
 `cache_hit`) for the finished job:
 
@@ -239,12 +277,12 @@ if webhook.data.response_meta:
     print("job cost", webhook.data.response_meta.usage.credits, "credits")
 ```
 
-Deliveries are signed with your **organization** webhook secret (configured in the
-dashboard under Account → Webhooks); there is no per-request secret. Verify and
+deliveries are signed with your **organization** webhook secret (configured in the
+dashboard under account → webhooks); there is no per-request secret. verify and
 consume them as shown below.
 
-**Verify the signature first**, using the **raw** request body (the exact bytes
-you received — not re-serialized JSON). `verify_webhook_signature` is pure crypto
+**verify the signature first**, using the **raw** request body (the exact bytes
+you received — not re-serialized json). `verify_webhook_signature` is pure crypto
 (no network, no extra dependency) and **returns** a result instead of raising, so
 a forged or replayed delivery is normal control flow:
 
@@ -274,40 +312,40 @@ async def crawlbrulee_webhook(request: Request) -> Response:
     return Response(status_code=200)
 ```
 
-(In Flask, the equivalent is `request.get_data()` for the raw body and
+(in Flask, the equivalent is `request.get_data()` for the raw body and
 `request.headers` for the lookup.)
 
 `fetch_scrape_result_from_webhook(webhook)` accepts the parsed webhook as either
-the decoded `dict` or a `ScrapeCompleteWebhook` dataclass. On a `success` job it
+the decoded `dict` or a `ScrapeCompleteWebhook` dataclass. on a `success` job it
 fetches the result via `get_scrape_result`; on `failed` it raises a
 `CrawlbruleeError` carrying the error message (`error_name="job_failed"`), and on
 `cancelled` it raises indicating cancellation.
 
-**Secret rotation.** During a rotation grace window the API also sends an
-`X-Cwbl-Signature-Rotated` header signed with the *previous* secret. Keep passing
+**secret rotation.** during a rotation grace window the api also sends an
+`X-Cwbl-Signature-Rotated` header signed with the *previous* secret. keep passing
 your current secret — `verify_webhook_signature` checks the primary header first,
 then the rotated one, and reports which matched via `result.signed_with`
 (`"primary"` or `"rotated"`).
 
-**Replay protection** is on by default: deliveries whose timestamp differs from
+**replay protection** is on by default: deliveries whose timestamp differs from
 now by more than `tolerance_seconds` (default `300`) are rejected with
-`reason="timestamp_out_of_tolerance"`. Pass `tolerance_seconds=0` to disable it.
+`reason="timestamp_out_of_tolerance"`. pass `tolerance_seconds=0` to disable it.
 
 ---
 
-## Errors
+## errors
 
-Every failure raised by the SDK subclasses `CrawlbruleeError`:
+every failure raised by the sdk subclasses `CrawlbruleeError`:
 
-| Class | When |
+| class | when |
 | --- | --- |
 | `AuthenticationError` | 401 / 403 (missing, invalid, or unauthorized key). |
-| `RateLimitError` | 429. Exposes `retry_after_ms` and `limited_by` when provided. |
-| `UsageAllocationError` | Plan limit hit. Exposes `reason` and `usage`. |
-| `ValidationError` | Bad request (`invalid_url`, `url_too_long`, `blocked_url`, …). |
+| `RateLimitError` | 429. exposes `retry_after_ms` and `limited_by` when provided. |
+| `UsageAllocationError` | plan limit hit. exposes `reason` and `usage`. |
+| `ValidationError` | bad request (`invalid_url`, `url_too_long`, `blocked_url`, …). |
 | `NotFoundError` | 404 (e.g. unknown async `job_id`). |
-| `TransportError` | Network failure, timeout, or non-JSON response. |
-| `CrawlbruleeError` | Base class — any other API error. Always has `status`, `error_name`, `message`. |
+| `TransportError` | network failure, timeout, or non-json response. |
+| `CrawlbruleeError` | base class — any other api error. always has `status`, `error_name`, `message`. |
 
 ```python
 import time
@@ -323,35 +361,34 @@ except UsageAllocationError as err:
     print("Plan limit hit:", err.reason, err.usage)
 ```
 
-For exhaustive branching, switch on `err.error_name`.
-
-### Rate limits
-
-Limits are per-plan, with **separate buckets for sync and async** (requests per
-minute). Synchronous `scrape()` **and** `map()` count against the sync bucket;
-`scrape_async()` submissions have their own bucket.
-
-| Plan     | Sync (rpm) | Async (rpm) |
-| -------- | ---------- | ----------- |
-| Free     | 50         | 100         |
-| Starter  | 100        | 300         |
-| Pro      | 350        | 1000        |
-| Advanced | 1000       | 3000        |
-
-Exceeding a bucket returns `429`; the SDK raises `RateLimitError` — read
-`retry_after_ms` to back off.
+for exhaustive branching, switch on `err.error_name`. the api docs carry the canonical
+[error reference](https://crawlbrulee.com/docs/errors) — every `error_name`, what causes it,
+and how to recover.
 
 ---
 
-## Notes on the wire format
+## timeouts
 
-The SDK mirrors the API's JSON shapes faithfully. Every endpoint — including the
+per-call `timeout=` is in **seconds** and overrides the constructor `timeout`; the default
+is `None`, so a request has **no ceiling** and a slow page can hang indefinitely — pass
+`timeout=` when you need one. a request that exceeds it raises a `TransportError` with
+`error_name="request_timeout"`. with the async client, standard asyncio cancellation
+applies — cancelling the awaiting task cancels the in-flight request.
+
+(note `wait_for_scrape(timeout=…)` is different — that's the overall polling budget for a
+job, not an http timeout.)
+
+---
+
+## notes on the wire format
+
+the sdk mirrors the api's json shapes faithfully. every endpoint — including the
 async job **status** response (`job_id`, `created_at`) — is snake_case on the
-wire, and the SDK field names match it 1:1.
+wire, and the sdk field names match it 1:1.
 
 ---
 
-## Development
+## development
 
 ```bash
 uv sync                 # or: pip install -e ".[dev]"
@@ -360,9 +397,21 @@ pyright
 pytest
 ```
 
-The SDK keeps a single runtime dependency (`httpx`) on purpose — please keep it that
+the sdk keeps a single runtime dependency (`httpx`) on purpose — please keep it that
 way when contributing.
 
-## License
+## part of the crawlbrulee toolkit
+
+one api, many ways to call it:
+
+- **[js/ts sdk](https://github.com/crawlbrulee/crawlbrulee-js)** — `@crawlbrulee/sdk`
+- **[python sdk](https://github.com/crawlbrulee/crawlbrulee-py)** — `crawlbrulee` on pypi (this one)
+- **[cli](https://github.com/crawlbrulee/crawlbrulee-cli)** — `npx crawlbrulee`
+- **[mcp server](https://github.com/crawlbrulee/crawlbrulee-mcp)** — `@crawlbrulee/mcp`, for ai agents
+- **[agent skills](https://github.com/crawlbrulee/crawlbrulee-skills)** — for skills-aware coding agents
+
+docs: [crawlbrulee.com/docs](https://crawlbrulee.com/docs) · dashboard: [dashboard.crawlbrulee.com](https://dashboard.crawlbrulee.com)
+
+## license
 
 [AGPL-3.0-only](./LICENSE)

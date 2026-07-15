@@ -1,73 +1,62 @@
-# Changelog
+# changelog
 
-All notable changes to this project are documented here. The format is based on
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
-to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (`0.x` releases may
-carry breaking changes between minor versions while the API stabilizes).
+all notable changes to the `crawlbrulee` python sdk are documented here.
 
-## [0.6.0] — 2026-07-13
+this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
-### Changed
+## 0.6.0 (2026-07-14)
 
-- **Screenshots.** In the rare case a screenshot can't be captured, the rest of your
-  requested outputs are still returned and the screenshot is simply left out, so
-  `page.screenshot` is `None`. `ScrapeResponse.screenshot` was already `Optional`; the
-  docstring and README now say so explicitly — guard for it (`page.screenshot and page.screenshot.url`).
-- **Custom screenshot viewport is bounded.** `ScreenshotViewport.width`/`height`
-  are integers in `[16, 10000]`; `device_scale_factor` is in `[1, 4]` and now
-  **accepts fractional values** (type widened from `int` to `float`). Out-of-range
-  values are rejected server-side with a `400`. The returned
+### changed
+
+- **screenshots.** in the rare case a screenshot can't be captured, we still return the rest of
+  your requested outputs and leave out the screenshot, so `page.screenshot` is `None`.
+  `ScrapeResponse.screenshot` was already `Optional`; the docstring and README now say so
+  explicitly — guard with `page.screenshot and page.screenshot.url`.
+- **custom screenshot viewport is bounded.** `ScreenshotViewport.width`/`height` are integers in
+  `[16, 10000]`; `device_scale_factor` is in `[1, 4]` and now **accepts fractional values** (type
+  widened from `int` to `float`). out-of-range values are rejected with a `400`. the returned
   `ScreenshotViewportInfo.device_scale_factor` is likewise typed `float`.
-- **`extract.images` output.** Image URLs now preserve their query string and
-  resolve document-relative `src`s against the full page URL (browser parity) —
-  the same rules as the links extractor. Output-only change; `PageInlineImage` is
-  unchanged, and its docstring notes the new behavior.
+- **`extract.images` output.** image urls now preserve their query string and resolve
+  document-relative `src`s against the full page url (browser parity) — the same rules as the
+  links extractor. output-only change; `PageInlineImage` is unchanged, and its docstring notes
+  the new behavior.
 
-### Docs
+## 0.5.0 (2026-07-13)
 
-- Documented per-plan rate limits with separate sync/async buckets (Free 50/100,
-  Starter 100/300, Pro 350/1000, Advanced 1000/3000). Sync `scrape()` and `map()`
-  share the sync bucket; `scrape_async()` has its own.
+### fixed
 
-## [0.5.0] — 2026-07-13
+- **async status fields now deserialize correctly.** `AsyncJobStatusResponse.job_id` and
+  `.created_at` were being read from the pre-June camelCase wire keys (`jobId`, `createdAt`) and
+  came back unset against the live snake_case api. the sdk now mirrors the snake_case wire 1:1
+  (no case mapping). public attribute names are unchanged, so this is invisible to callers — the
+  fields simply populate again.
 
-### Fixed
+### changed (docs)
 
-- **Async status fields now deserialize correctly.** `AsyncJobStatusResponse.job_id`
-  and `.created_at` were being read from the pre-June camelCase wire keys
-  (`jobId`, `createdAt`) and came back unset against the live API, which has been
-  fully snake_case since 2026-06-13. The SDK now mirrors the snake_case wire 1:1
-  (no case mapping). Public attribute names are unchanged, so this is invisible to
-  callers — the fields simply populate again.
+- default proxy tier is now `auto` (tries the basic tier first, escalates to advanced on failure;
+  billed at the delivered tier) instead of `basic`. docstring-only — the client still omits
+  `proxy` when unset and lets the server apply the default.
 
-### Changed
+## 0.4.0 (2026-07-03)
 
-- **Default proxy tier is `auto`.** Docs/type comments now describe the omitted-`proxy`
-  default as `auto` (tries the basic tier first, escalates to advanced on failure;
-  billed at the delivered tier) instead of `basic`. No behavioral change — the
-  client still omits `proxy` when unset and lets the server default apply.
-- **API token prefix is `cwbl_`.** Docstring and README examples use the new
-  `cwbl_` token prefix (was `cble_`). Existing `cble_` tokens keep authenticating.
+### added
 
-## [0.4.0] — 2026-07-03
-
-### Added
-
-- **`response_meta.usage` on every success.** `ScrapeResponse` and `MapResponse`
-  now expose a `response_meta.usage` block (`Usage`) with the per-request billing +
-  routing details:
+- **`response_meta.usage` on every success.** `ScrapeResponse` and `MapResponse` now expose a
+  `response_meta.usage` block (`Usage`) with the per-request billing + routing details:
   - `credits` — credits charged (`0` on a cache hit).
-  - `proxy` — the proxy tier that actually ran (`"none"` / `"basic"` / `"advanced"`).
-    This is the **resolved** tier; `"auto"` is decided server-side and is never
-    echoed back (`ResolvedProxyTier`).
+  - `proxy` — the proxy tier that actually ran (`"none"` / `"basic"` / `"advanced"`). this is the
+    **resolved** tier; `"auto"` is decided server-side and is never echoed back
+    (`ResolvedProxyTier`).
   - `cache_hit` — whether the result was served from cache.
-- **Async status usage.** `AsyncJobStatusResponse` gains an optional `response_meta`
+- **async status usage.** `AsyncJobStatusResponse` gains an optional `response_meta`
   (`AsyncStatusMeta`) carrying `usage`, present once the job reaches `done`.
-- **Webhook usage.** The `scrape.complete` delivery's `data` gains a `response_meta`
+- **webhook usage.** the `scrape.complete` delivery's `data` gains a `response_meta`
   (`ScrapeCompleteWebhookMeta`) carrying `usage` for the finished job.
-- New public types: `Usage`, `ResolvedProxyTier`, `ScrapeResponseMeta`,
-  `AsyncStatusMeta`, `ScrapeCompleteWebhookMeta`.
+- new public types: `Usage`, `ResolvedProxyTier`, `ScrapeResponseMeta`, `AsyncStatusMeta`,
+  `ScrapeCompleteWebhookMeta`.
 
-## [0.3.0]
+## 0.3.0 (2026-06-15)
 
-- Initial public beta.
+### added
+
+- initial public beta.

@@ -13,5 +13,5 @@ maintainer's umbrella checkout:
 
 Read it from there when you need the bigger picture. It may be absent if this repository
 was cloned on its own. It is also exposed locally as the `crawlbrulee-ecosystem` skill
-(`.agents/skills/crawlbrulee-ecosystem/`), which Claude Code discovers via the
+(`.agents/skills/crawlbrulee-ecosystem/`), which agents discovers via the
 `.claude/skills` symlink.
