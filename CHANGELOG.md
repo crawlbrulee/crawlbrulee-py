@@ -4,6 +4,15 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 0.7.0 (2026-07-15)
+
+### changed
+
+- **proxy tier types now match the supported API surface.** `ProxyTier` is
+  `Literal["basic", "advanced", "auto"]` and `ResolvedProxyTier` is
+  `Literal["basic", "advanced"]`. this is a type-only change — no runtime behaviour is
+  affected, and any value outside these was already rejected by the api.
+
 ## 0.6.0 (2026-07-14)
 
 ### changed

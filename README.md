@@ -17,7 +17,7 @@ this readme covers the sdk itself — the clients, the types, and the python-sid
 for how the api behaves — endpoints, parameters, and error semantics — please see our
 [api docs](https://crawlbrulee.com/docs).
 
-> **status:** v0.6.0 (beta). the api surface is stabilizing — expect minor breaking
+> **status:** v0.7.0 (beta). the api surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 **get a free api key** → [dashboard.crawlbrulee.com](https://dashboard.crawlbrulee.com)
