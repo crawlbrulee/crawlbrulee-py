@@ -37,13 +37,19 @@ class ScrapeExtract:
 
 @dataclass
 class ScrapeCache:
-    """Cache settings for a scrape request."""
+    """Cache settings for a scrape request.
+
+    ``max_age`` is the only cache control. The cache key is built from the url
+    you request: known tracking parameters (``utm_*``, ``mtm_*``, ``ga_*``,
+    ``pk_*``, ``gclid``, ``fbclid``, ``msclkid``, and more) are stripped before
+    the page is fetched, so they reach neither the target site nor the key.
+    Every other query parameter is kept verbatim and is part of the key, so
+    ``/page`` and ``/page?ref=x`` are separate entries.
+    """
 
     #: Maximum cache age: a number of seconds (non-negative int) or an ISO-8601
     #: datetime cutoff. Defaults to 2 days when omitted.
     max_age: int | str | None = None
-    #: Treat URLs with different query params as the same entry. Default ``False``.
-    ignore_query_params: bool | None = None
 
 
 @dataclass

@@ -4,6 +4,23 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 0.8.0 (2026-07-27)
+
+### removed
+
+- **`ScrapeCache.ignore_query_params` is gone**, because the api no longer accepts it — `cache` is
+  strict, so a request carrying the field is rejected. `max_age` is now the only cache control.
+  if you were setting it, drop it and send the url you actually want cached: every non-tracking
+  query parameter is part of the cache key, so ``https://example.com/page`` and
+  ``https://example.com/page?ref=x`` are separate entries.
+
+### changed
+
+- the ``url`` field is documented more precisely: known tracking parameters (``utm_*``, ``mtm_*``,
+  ``ga_*``, ``pk_*``, ``gclid``, ``fbclid``, ``msclkid``, and more) are removed before the page is
+  fetched, so they reach neither the target site nor the cache key. every other query parameter is
+  kept verbatim.
+
 ## 0.7.0 (2026-07-15)
 
 ### changed
