@@ -178,6 +178,7 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
         "url_credentials_not_supported",
         "blocked_url",
         "unsupported_content",
+        "unsupported_screenshot_output",
     ):
         return ValidationError(message, status=status, error_name=name, response=body)
 

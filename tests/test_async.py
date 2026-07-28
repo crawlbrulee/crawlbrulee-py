@@ -182,7 +182,13 @@ def test_wait_for_scrape_polls_until_done() -> None:
             state = "pending" if calls["status"] < 3 else "done"
             return json_response({"job_id": "j1", "status": state, "created_at": "t"})
         if request.url.path == "/api/scrape/result/j1":
-            return json_response({"url": "https://example.com", "markdown": "done!"})
+            return json_response(
+                {
+                    "url": "https://example.com",
+                    "requested_url": "https://example.com",
+                    "markdown": "done!",
+                }
+            )
         raise AssertionError(request.url.path)
 
     client = make_sync(handler)
@@ -217,7 +223,13 @@ def test_wait_for_scrape_timeout_raises_request_timeout() -> None:
 async def test_async_client_scrape() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/scrape"
-        return json_response({"url": "https://example.com", "markdown": "# async"})
+        return json_response(
+            {
+                "url": "https://example.com",
+                "requested_url": "https://example.com",
+                "markdown": "# async",
+            }
+        )
 
     client = make_async(handler)
     page = await client.scrape(url="https://example.com")
@@ -233,7 +245,9 @@ async def test_async_client_wait_for_scrape() -> None:
             calls["status"] += 1
             state = "running" if calls["status"] < 2 else "done"
             return json_response({"job_id": "j1", "status": state, "created_at": "t"})
-        return json_response({"url": "https://example.com", "markdown": "ok"})
+        return json_response(
+            {"url": "https://example.com", "requested_url": "https://example.com", "markdown": "ok"}
+        )
 
     async with make_async(handler) as client:
         page = await client.wait_for_scrape("j1", interval=0.001)

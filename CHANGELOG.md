@@ -4,6 +4,42 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 0.9.0 (2026-07-28)
+
+### fixed
+
+- **`ScrapeResponse.requested_url` — the field finally reaches you.** the api sends
+  `requested_url` (the url you requested, echoed verbatim — before any redirects) on every
+  scrape success, but the sdk's deserializer drops keys its models don't declare, so the field
+  was silently unreachable at runtime. it is now a required field on `ScrapeResponse`, on both
+  the sync `scrape()` response and the async `get_scrape_result()` / `wait_for_scrape()` result.
+- `__version__` (and the user-agent built from it) had drifted — 0.8.0 shipped still reporting
+  `0.7.0`. both now track the release version again.
+
+### added
+
+- **`unsupported_screenshot_output`** joins `ApiErrorName`, and `create_api_error` maps it to
+  `ValidationError` — the same class as `unsupported_content`. raised as a `422` when a
+  screenshot was the *only* requested output and the content type can't be screenshotted.
+
+### changed (docs)
+
+- **screenshot failure contract, stated precisely.** the "rest of your outputs still arrive and
+  `page.screenshot` is `None`" behavior only applies when other outputs were requested. a
+  screenshot-**only** request that can't deliver fails instead — `422`
+  `unsupported_screenshot_output` when the content type can't be screenshotted, `500` on a
+  capture failure — and isn't billed.
+- **cache billing wording.** `credits` is `0` on a *fully* cached result; only parts still
+  computed fresh (e.g. a newly produced screenshot-slice variant) are charged. `cache_hit`
+  no longer claims a cache hit always costs `0`.
+- **link semantics documented.** `PageLink.href` is the link as written on the page, resolved
+  to an absolute url — verbatim otherwise (query string, fragment, and duplicates preserved);
+  non-http(s) hrefs are dropped. `PageLink.internal` means same domain, where `www` and the
+  bare domain count as the same and other subdomains are external.
+- `ScrapeResponse.url` is documented more precisely: the url actually scraped, after any
+  redirects, in cleaned canonical form (tracking params and fragment removed) — the base that
+  `links`, `images`, and `internal` labels are computed against.
+
 ## 0.8.0 (2026-07-27)
 
 ### removed

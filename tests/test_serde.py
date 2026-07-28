@@ -50,11 +50,30 @@ def test_to_dict_dict_passthrough_drops_none() -> None:
 def test_from_dict_ignores_unknown_keys() -> None:
     page = from_dict(
         ScrapeResponse,
-        {"url": "https://x.com", "markdown": "m", "future_field": "ignored"},
+        {
+            "url": "https://x.com",
+            "requested_url": "https://x.com",
+            "markdown": "m",
+            "future_field": "ignored",
+        },
     )
     assert page.url == "https://x.com"
     assert page.markdown == "m"
     assert page.cleaned_html is None
+
+
+def test_from_dict_parses_requested_url() -> None:
+    # requested_url is echoed verbatim (before redirects and url cleaning), while
+    # url is the cleaned, post-redirect base -- both must survive deserialization.
+    page = from_dict(
+        ScrapeResponse,
+        {
+            "url": "https://x.com/final",
+            "requested_url": "https://x.com/start?utm_source=news#top",
+        },
+    )
+    assert page.requested_url == "https://x.com/start?utm_source=news#top"
+    assert page.url == "https://x.com/final"
 
 
 def test_from_dict_applies_wire_aliases() -> None:
@@ -110,5 +129,8 @@ def test_from_dict_handles_null_for_non_optional_list_field() -> None:
 
 def test_from_dict_handles_null_for_nested_dataclass_field() -> None:
     # A wire null for a nested dataclass field must map to None, not crash.
-    page = from_dict(ScrapeResponse, {"url": "https://x.com", "screenshot": None})
+    page = from_dict(
+        ScrapeResponse,
+        {"url": "https://x.com", "requested_url": "https://x.com", "screenshot": None},
+    )
     assert page.screenshot is None

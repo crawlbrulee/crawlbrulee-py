@@ -147,8 +147,12 @@ class PageLink:
     """A single link discovered on the page."""
 
     text: str
+    #: The link URL as written on the page, resolved to an absolute URL --
+    #: verbatim otherwise (query string, fragment, and duplicates preserved).
+    #: Non-http(s) hrefs (``mailto:``, ``tel:``, ...) are dropped.
     href: str
-    #: Whether the link points to the same domain as the scraped page.
+    #: Whether the link points to the same domain as the scraped page. ``www``
+    #: and the bare domain count as the same; other subdomains are external.
     internal: bool
 
 
@@ -197,8 +201,12 @@ class ScrapeResponse:
     """Successful response from ``POST /api/scrape`` and
     ``GET /api/scrape/result/:job_id``."""
 
-    #: The URL that was actually scraped (after any redirects).
+    #: The URL that was actually scraped, after any redirects, in cleaned
+    #: canonical form (tracking params and fragment removed) -- the base that
+    #: ``links``, ``images``, and ``internal`` labels are computed against.
     url: str
+    #: The URL you requested, echoed verbatim -- before any redirects.
+    requested_url: str
     #: ``Content-Type`` header returned by the origin.
     content_type: str | None = None
     #: Requested extract fields that aren't supported for this content type.
@@ -214,8 +222,11 @@ class ScrapeResponse:
     #: Links discovered on the page (when ``extract.links``).
     links: list[PageLink] | None = None
     #: Captured screenshot (when ``extract.screenshot``). In rare cases a screenshot
-    #: can't be captured; when that happens the rest of your requested outputs are
-    #: still returned and this is simply left out, so it reads back as ``None``.
+    #: can't be captured; when you also requested other outputs, those still arrive
+    #: and this is simply left out, so it reads back as ``None``. A screenshot-**only**
+    #: request that can't deliver fails instead -- 422 ``unsupported_screenshot_output``
+    #: when the content type can't be screenshotted, 500 on a capture failure -- and
+    #: isn't billed.
     screenshot: ScreenshotResult | None = None
     #: Extracted page metadata (when ``extract.metadata``, on by default).
     metadata: ScrapeMetadata | None = None

@@ -18,6 +18,7 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
         return json_response(
             {
                 "url": "https://example.com",
+                "requested_url": "https://example.com/?utm_source=news",
                 "content_type": "text/html",
                 "markdown": "# Hello",
                 "links": [
@@ -40,6 +41,7 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
     assert captured["method"] == "POST"
     assert captured["path"] == "/api/scrape"
     assert page.url == "https://example.com"
+    assert page.requested_url == "https://example.com/?utm_source=news"
     assert page.markdown == "# Hello"
     assert page.links is not None
     assert page.links[0].text == "Home"
@@ -59,6 +61,7 @@ def test_scrape_parses_meta_usage_on_cache_hit() -> None:
         return json_response(
             {
                 "url": "https://example.com",
+                "requested_url": "https://example.com",
                 "markdown": "# cached",
                 "response_meta": {
                     "usage": {"credits": 0, "proxy": "advanced", "cache_hit": True},
@@ -79,7 +82,7 @@ def test_scrape_body_omits_none_and_nests_dataclasses() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["body"] = request_json(request)
-        return json_response({"url": "https://example.com"})
+        return json_response({"url": "https://example.com", "requested_url": "https://example.com"})
 
     client = make_sync(handler)
     client.scrape(
@@ -109,7 +112,7 @@ def test_scrape_accepts_plain_dict_request_parts() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["body"] = request_json(request)
-        return json_response({"url": "https://example.com"})
+        return json_response({"url": "https://example.com", "requested_url": "https://example.com"})
 
     client = make_sync(handler)
     client.scrape(url="https://example.com", extract={"markdown": True, "metadata": None})
@@ -123,6 +126,7 @@ def test_scrape_parses_screenshot_with_slices() -> None:
         return json_response(
             {
                 "url": "https://example.com",
+                "requested_url": "https://example.com",
                 "screenshot": {
                     "url": "https://cdn/full.png",
                     "type": "full_page",

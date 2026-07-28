@@ -17,7 +17,7 @@ this readme covers the sdk itself — the clients, the types, and the python-sid
 for how the api behaves — endpoints, parameters, and error semantics — please see our
 [api docs](https://crawlbrulee.com/docs).
 
-> **status:** v0.7.0 (beta). the api surface is stabilizing — expect minor breaking
+> **status:** v0.9.0 (beta). the api surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 **get a free api key** → [dashboard.crawlbrulee.com](https://dashboard.crawlbrulee.com)
@@ -120,9 +120,12 @@ defaults apply.
   escalates to advanced on failure, billed at the delivered tier. pass `"basic"`
   or `"advanced"` to pin a tier. see
   [proxies & location](https://crawlbrulee.com/docs/proxies) for what each tier does.
-- **screenshots.** in rare cases a screenshot can't be captured; when that happens the
-  rest of your requested outputs are still returned and the screenshot is simply left out,
-  so `page.screenshot` is `None` — guard for it (`page.screenshot and page.screenshot.url`). custom `viewport.width`/`height` are
+- **screenshots.** in rare cases a screenshot can't be captured; when you also requested
+  other outputs, those still arrive and the screenshot is simply left out, so
+  `page.screenshot` is `None` — guard for it (`page.screenshot and page.screenshot.url`).
+  a screenshot-**only** request that can't deliver fails instead — `422`
+  `unsupported_screenshot_output` when the content type can't be screenshotted, `500` on
+  a capture failure — and isn't billed. custom `viewport.width`/`height` are
   integers in `[16, 10000]` and `device_scale_factor` is in `[1, 4]` (fractional
   allowed); out-of-range values are rejected with a `400`. full capture options:
   [screenshots](https://crawlbrulee.com/docs/scrape/screenshots).
@@ -164,10 +167,15 @@ sync — is documented under [async scrape](https://crawlbrulee.com/docs/scrape/
 
 a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 
+- `url` — the url that was actually scraped, after any redirects, in cleaned canonical
+  form (tracking params and fragment removed) — the base that `links`, `images`, and
+  `internal` labels are computed against.
+- `requested_url` — the url you requested, echoed verbatim — before any redirects.
 - `metadata` — extracted page metadata (`title`, `description`, OG/Twitter
   tags, …), present when `extract.metadata` is on (the default).
 - `response_meta.usage` — per-request billing + routing usage:
-  - `credits` — credits charged (`0` on a cache hit).
+  - `credits` — credits charged. `0` on a fully cached result; only parts still
+    computed fresh (e.g. a newly produced screenshot-slice variant) are charged.
   - `proxy` — the proxy tier that actually ran: `"basic"` or `"advanced"` (the
     **resolved** tier — `"auto"` is decided server-side and is never echoed
     here).
@@ -182,7 +190,7 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 ```python
 page = client.scrape(url="https://example.com")
 if page.response_meta and page.response_meta.usage.cache_hit:
-    print("served from cache — 0 credits")
+    print("served from cache —", page.response_meta.usage.credits, "credits")
 ```
 
 ### mapping

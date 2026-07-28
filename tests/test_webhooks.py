@@ -215,7 +215,13 @@ def test_fetch_from_webhook_success_dict() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen["path"] = request.url.path
-        return json_response({"url": "https://example.com", "markdown": "# done"})
+        return json_response(
+            {
+                "url": "https://example.com",
+                "requested_url": "https://example.com",
+                "markdown": "# done",
+            }
+        )
 
     client = make_sync(handler)
     page = client.fetch_scrape_result_from_webhook(_success_webhook_dict("job_42"))
@@ -226,7 +232,9 @@ def test_fetch_from_webhook_success_dict() -> None:
 def test_fetch_from_webhook_success_dataclass() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/scrape/result/job_dc"
-        return json_response({"url": "https://example.com", "markdown": "ok"})
+        return json_response(
+            {"url": "https://example.com", "requested_url": "https://example.com", "markdown": "ok"}
+        )
 
     webhook = ScrapeCompleteWebhook(
         event_id="evt_1",
@@ -282,7 +290,13 @@ def test_fetch_from_webhook_wrong_event_raises() -> None:
 async def test_async_fetch_from_webhook_success() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/scrape/result/job_async"
-        return json_response({"url": "https://example.com", "markdown": "async-done"})
+        return json_response(
+            {
+                "url": "https://example.com",
+                "requested_url": "https://example.com",
+                "markdown": "async-done",
+            }
+        )
 
     async with make_async(handler) as client:
         page = await client.fetch_scrape_result_from_webhook(_success_webhook_dict("job_async"))

@@ -112,11 +112,14 @@ class Usage:
     which proxy tier actually ran -- without a separate ``/api/usage`` call.
     """
 
-    #: Credits charged for this request. ``0`` on a cache hit (nothing fetched).
+    #: Credits charged for this request. ``0`` on a fully cached result; only
+    #: parts still computed fresh (e.g. a newly produced screenshot-slice
+    #: variant) are charged.
     credits: int
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
     proxy: ResolvedProxyTier
-    #: Whether the result was served from cache (and so cost ``0`` credits).
+    #: Whether the result was served from cache (see ``credits`` for what a
+    #: cached result costs).
     cache_hit: bool
 
 
@@ -143,6 +146,7 @@ ApiErrorName = Literal[
     "internal_server_error",
     "too_many_requests",
     "unsupported_content",
+    "unsupported_screenshot_output",
     "validation_error",
     "antibot_blocked",
 ]

@@ -79,6 +79,18 @@ def test_validation_errors() -> None:
         assert err.error_name == name
 
 
+def test_unsupported_screenshot_output_maps_to_validation_error() -> None:
+    # 422: a screenshot was the only requested output, but the content type
+    # can't be screenshotted. Same class as unsupported_content.
+    err = create_api_error(
+        {"name": "unsupported_screenshot_output", "message": "screenshots need an HTML page"},
+        422,
+    )
+    assert isinstance(err, ValidationError)
+    assert err.error_name == "unsupported_screenshot_output"
+    assert err.status == 422
+
+
 def test_name_first_beats_status_heuristics() -> None:
     # A 403 carrying name=not_found must map by name, not by status.
     err = create_api_error({"name": "not_found", "message": "x"}, 403)
