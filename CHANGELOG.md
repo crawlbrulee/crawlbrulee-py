@@ -4,6 +4,19 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 0.10.0 (2026-08-03)
+
+### removed (breaking)
+
+- **`overage_hard_cap` is no longer part of `UsageAllocationReason`.** the api used to return two
+  reason codes for one condition: `credit_limit` when a plan had no headroom, `overage_hard_cap`
+  when it did. they were mutually exclusive by plan — no org could ever see both — and meant the
+  same thing to you: no credits left, refused until the cycle resets, same status and same remedy.
+  they are now reported as `credit_limit` for every plan.
+
+  if you branch on `overage_hard_cap`, fold that branch into your `credit_limit` case. type
+  checkers will flag comparisons against the removed literal, which is the intended prompt to look.
+
 ## 0.9.0 (2026-07-28)
 
 ### fixed

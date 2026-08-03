@@ -155,7 +155,6 @@ ApiErrorName = Literal[
 UsageAllocationReason = Literal[
     "credit_limit",
     "concurrency_limit",
-    "overage_hard_cap",
     "duplicate_reservation",
     "internal_error",
 ]
