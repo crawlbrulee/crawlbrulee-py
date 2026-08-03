@@ -5,23 +5,28 @@ for ``__version__`` and the user-agent built from it — with nothing comparing 
 0.8.0 shipped announcing 0.7.0 for exactly this reason. The mismatch is invisible
 from inside: every test passes, the wheel builds, and the only evidence is in our
 own request logs, attributing traffic to a version that was never released.
+
+Read with a regex rather than ``tomllib``, which is stdlib only from 3.11 while
+this package supports 3.10. A test that guards against a version mismatch is not
+worth narrowing the supported range for.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
-
-import tomllib
 
 from crawlbrulee import __version__
 from crawlbrulee._config import USER_AGENT
 
 PYPROJECT = Path(__file__).resolve().parent.parent / "pyproject.toml"
+VERSION_LINE = re.compile(r'^version\s*=\s*"([^"]+)"', re.MULTILINE)
 
 
 def _declared_version() -> str:
-    with PYPROJECT.open("rb") as fh:
-        return tomllib.load(fh)["project"]["version"]
+    match = VERSION_LINE.search(PYPROJECT.read_text(encoding="utf-8"))
+    assert match is not None, "no version declared in pyproject.toml"
+    return match.group(1)
 
 
 def test_dunder_version_matches_pyproject() -> None:
