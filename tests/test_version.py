@@ -9,8 +9,9 @@ own request logs, attributing traffic to a version that was never released.
 
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
+
+import tomllib
 
 from crawlbrulee import __version__
 from crawlbrulee._config import USER_AGENT
@@ -28,4 +29,4 @@ def test_dunder_version_matches_pyproject() -> None:
 
 
 def test_user_agent_reports_the_released_version() -> None:
-    assert USER_AGENT == f"crawlbrulee-python/{_declared_version()} (httpx)"
+    assert f"crawlbrulee-python/{_declared_version()} (httpx)" == USER_AGENT
