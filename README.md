@@ -126,7 +126,7 @@ defaults apply.
   a screenshot-**only** request that can't deliver fails instead — `422`
   `unsupported_screenshot_output` when the content type can't be screenshotted, `500` on
   a capture failure — and isn't billed. custom `viewport.width`/`height` are
-  integers in `[16, 10000]` and `device_scale_factor` is in `[1, 4]` (fractional
+  integers in `[16, 10000]` and `device_scale_factor` is in `[1, 3]` (fractional
   allowed); out-of-range values are rejected with a `400`. full capture options:
   [screenshots](https://crawlbrulee.com/docs/scrape/screenshots).
 - **`extract.images`** urls preserve their query string and resolve document-relative
