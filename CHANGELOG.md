@@ -23,7 +23,14 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
   (serialized body html past 10 000 000 characters), and `metadata_truncated` (serialized
   head html past 2 000 000 characters). they join the pre-existing
   `screenshot_truncated`.
-- **`ScrapeWarningCode`** — a literal alias of the five codes, for callers that want to
+- **three `*_unavailable` warning codes**: `links_unavailable`, `inline_images_unavailable`
+  and `metadata_unavailable`. the `*_truncated` codes mean you got output that was capped;
+  these mean that section's extraction failed outright, so the field comes back omitted or
+  empty while the rest of the scrape succeeds. the distinction is the point — an empty
+  ``links`` carrying ``links_unavailable`` is not a page without links, it is a page whose
+  links we could not read. the page body has no such code: if it cannot be extracted the
+  scrape fails rather than returning a hollow ``200``, and is not billed.
+- **`ScrapeWarningCode`** — a literal alias of all eight codes, for callers that want to
   match them exhaustively. `ScrapeResponse.warnings` itself stays `list[str]` so a code
   added later still deserializes.
 
@@ -35,6 +42,13 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
   documentation correction only — the sdk never validated the field client-side.
 - `extract.links`, `extract.images`, `extract.raw_html` and `extract.metadata` now document
   their per-page caps and the warning code each one emits when truncated.
+- **`warnings` is no longer documented as fresh-scrapes-only.** the api used to compute them
+  on the sync scrape path and drop them everywhere else. they are now stored with the result,
+  so cache hits and async result fetches report the same codes, filtered to the outputs you
+  requested (``raw_html_truncated`` always surfaces, since a truncated body also feeds
+  ``markdown`` and ``cleaned_html``). the ``*_unavailable`` codes only ever reach the request
+  whose own scrape degraded: a cached result missing a field you asked for is re-scraped
+  rather than served.
 
 ## 0.10.0 (2026-08-03)
 

@@ -206,15 +206,27 @@ class ScrapeResponseMeta:
     usage: Usage
 
 
-#: Stable codes that can appear in ``ScrapeResponse.warnings``. Each one means an
-#: output was capped and truncated -- loudly, never silently -- so the payload is
-#: partial but still usable:
+#: Stable codes that can appear in ``ScrapeResponse.warnings``, in two families.
+#:
+#: Truncation -- the output was capped, loudly rather than silently, so the
+#: payload is partial but still usable:
 #:
 #: - ``screenshot_truncated`` -- a scrolling full-page capture exceeded the height cap.
 #: - ``links_truncated`` -- the page had more than 30 000 links.
 #: - ``inline_images_truncated`` -- the page had more than 10 000 inline images.
 #: - ``raw_html_truncated`` -- the serialized body HTML exceeded 10 000 000 characters.
 #: - ``metadata_truncated`` -- the serialized head HTML exceeded 2 000 000 characters.
+#:
+#: Unavailability -- that section's extraction failed, so the field is omitted or
+#: empty while the rest of the scrape succeeded. These distinguish "the page had
+#: none" from "we couldn't read them":
+#:
+#: - ``links_unavailable`` -- link extraction failed.
+#: - ``inline_images_unavailable`` -- image extraction failed.
+#: - ``metadata_unavailable`` -- metadata extraction failed.
+#:
+#: The page body has no such code: if it can't be extracted the scrape fails
+#: outright rather than returning a hollow 200, and isn't billed.
 #:
 #: ``warnings`` itself stays a plain ``list[str]`` so a code added later still
 #: deserializes; use this alias when you want to match the known codes exhaustively.
@@ -224,6 +236,9 @@ ScrapeWarningCode = Literal[
     "inline_images_truncated",
     "raw_html_truncated",
     "metadata_truncated",
+    "links_unavailable",
+    "inline_images_unavailable",
+    "metadata_unavailable",
 ]
 
 
@@ -263,9 +278,15 @@ class ScrapeResponse:
     metadata: ScrapeMetadata | None = None
     #: Request-level metadata: billing + routing usage for this request.
     response_meta: ScrapeResponseMeta | None = None
-    #: Non-error notices about the scrape (stable codes -- safe to switch on).
-    #: One of ``screenshot_truncated``, ``links_truncated``,
-    #: ``inline_images_truncated``, ``raw_html_truncated``, ``metadata_truncated``
-    #: -- see :data:`ScrapeWarningCode`. Kept as ``list[str]`` so a code added
-    #: later still deserializes.
+    #: Non-error notices about the scrape (stable codes -- safe to switch on):
+    #: an output was capped (``*_truncated``) or could not be extracted
+    #: (``*_unavailable``) -- see :data:`ScrapeWarningCode`. Kept as
+    #: ``list[str]`` so a code added later still deserializes.
+    #:
+    #: Warnings are stored with the result, so cache hits and async result
+    #: fetches carry them too, filtered to the outputs you requested
+    #: (``raw_html_truncated`` always surfaces, since a truncated body also
+    #: feeds ``markdown`` and ``cleaned_html``). The ``*_unavailable`` codes
+    #: only ever reach the request whose own scrape degraded: a cached result
+    #: missing a field you asked for is re-scraped rather than served.
     warnings: list[str] | None = None

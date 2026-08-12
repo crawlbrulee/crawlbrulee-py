@@ -181,7 +181,7 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
     here).
   - `cache_hit` — whether the result was served from cache.
 - `warnings` — a list of stable string codes flagging something worth noting on an
-  otherwise-successful scrape. each one means an output hit a cap and was truncated —
+  otherwise-successful scrape, in two families. an output hit a cap and was truncated —
   loudly, never silently — so the payload is partial but still usable:
   - `screenshot_truncated` — a long page exceeded the scrolling-screenshot height cap.
   - `links_truncated` — the page had more than 30 000 links.
@@ -189,9 +189,20 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   - `raw_html_truncated` — the serialized body html exceeded 10 000 000 characters.
   - `metadata_truncated` — the serialized head html exceeded 2 000 000 characters.
 
+  or one section's extraction failed, so that field comes back omitted or empty while the
+  rest of the scrape succeeds — which is how you tell "the page had none" from "we
+  couldn't read them":
+  - `links_unavailable` — link extraction failed.
+  - `inline_images_unavailable` — image extraction failed.
+  - `metadata_unavailable` — metadata extraction failed.
+
+  the page body has no such code: if it can't be extracted the scrape fails outright
+  rather than returning a hollow `200`, and isn't billed.
+
   safe to switch on — the `ScrapeWarningCode` literal gives you the known set, while the
-  field itself stays `list[str]` so a code added later still deserializes. fresh scrapes
-  only — cache hits omit them.
+  field itself stays `list[str]` so a code added later still deserializes. warnings are
+  stored with the result, so cache hits and async result fetches report them too,
+  filtered to the outputs you asked for.
 - `unsupported_fields` — if you request an extract that doesn't apply to the content type
   (e.g. `markdown` of a pdf), that field name comes back here and the rest of your payload is
   still returned.
