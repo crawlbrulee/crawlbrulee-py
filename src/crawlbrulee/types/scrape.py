@@ -18,18 +18,28 @@ class ScrapeExtract:
     ``metadata + cleaned_html``."""
 
     #: Extract page metadata (title, description, OG/Twitter tags). Default ``True``.
+    #: Read from at most 2 000 000 characters of serialized ``<head>`` HTML per
+    #: page; past that the head is truncated (tags after the cut are not parsed)
+    #: and a ``metadata_truncated`` warning is returned.
     metadata: bool | None = None
     #: Extract cleaned HTML (main content only). Default ``True``.
     cleaned_html: bool | None = None
     #: Extract the page as clean Markdown. Default ``False``.
     markdown: bool | None = None
-    #: Return the raw, unprocessed HTML. Default ``False``.
+    #: Return the raw, unprocessed HTML. Default ``False``. The serialized body
+    #: HTML is capped at 10 000 000 characters per page; a longer document is
+    #: truncated at a tag boundary (never mid-tag) and a ``raw_html_truncated``
+    #: warning is returned.
     raw_html: bool | None = None
-    #: Extract all links found on the page. Default ``False``.
+    #: Extract all links found on the page. Default ``False``. At most 30 000
+    #: links per page; beyond that the list is truncated and a
+    #: ``links_truncated`` warning is returned.
     links: bool | None = None
     #: Extract all inline images found on the page. Default ``False``. Image URLs
     #: preserve their query string, and document-relative ``src``s are resolved
     #: against the full page URL (browser parity) -- the same rules as ``links``.
+    #: At most 10 000 images per page; beyond that the list is truncated and an
+    #: ``inline_images_truncated`` warning is returned.
     images: bool | None = None
     #: Capture a screenshot. Omit to skip; set a ``ScreenshotRequest`` to enable.
     screenshot: ScreenshotRequest | None = None
@@ -196,6 +206,27 @@ class ScrapeResponseMeta:
     usage: Usage
 
 
+#: Stable codes that can appear in ``ScrapeResponse.warnings``. Each one means an
+#: output was capped and truncated -- loudly, never silently -- so the payload is
+#: partial but still usable:
+#:
+#: - ``screenshot_truncated`` -- a scrolling full-page capture exceeded the height cap.
+#: - ``links_truncated`` -- the page had more than 30 000 links.
+#: - ``inline_images_truncated`` -- the page had more than 10 000 inline images.
+#: - ``raw_html_truncated`` -- the serialized body HTML exceeded 10 000 000 characters.
+#: - ``metadata_truncated`` -- the serialized head HTML exceeded 2 000 000 characters.
+#:
+#: ``warnings`` itself stays a plain ``list[str]`` so a code added later still
+#: deserializes; use this alias when you want to match the known codes exhaustively.
+ScrapeWarningCode = Literal[
+    "screenshot_truncated",
+    "links_truncated",
+    "inline_images_truncated",
+    "raw_html_truncated",
+    "metadata_truncated",
+]
+
+
 @dataclass
 class ScrapeResponse:
     """Successful response from ``POST /api/scrape`` and
@@ -233,4 +264,8 @@ class ScrapeResponse:
     #: Request-level metadata: billing + routing usage for this request.
     response_meta: ScrapeResponseMeta | None = None
     #: Non-error notices about the scrape (stable codes -- safe to switch on).
+    #: One of ``screenshot_truncated``, ``links_truncated``,
+    #: ``inline_images_truncated``, ``raw_html_truncated``, ``metadata_truncated``
+    #: -- see :data:`ScrapeWarningCode`. Kept as ``list[str]`` so a code added
+    #: later still deserializes.
     warnings: list[str] | None = None

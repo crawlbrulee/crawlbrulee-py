@@ -54,6 +54,7 @@ from .scrape import (
     ScrapeMetadata,
     ScrapeResponse,
     ScrapeResponseMeta,
+    ScrapeWarningCode,
     ScrapeWebhook,
     ScreenshotProperties,
     ScreenshotResult,
@@ -101,6 +102,7 @@ __all__ = [
     "ScrapeMetadata",
     "ScrapeResponseMeta",
     "ScrapeResponse",
+    "ScrapeWarningCode",
     # map
     "MapTypes",
     "MapCache",

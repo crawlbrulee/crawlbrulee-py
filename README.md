@@ -181,8 +181,17 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
     here).
   - `cache_hit` — whether the result was served from cache.
 - `warnings` — a list of stable string codes flagging something worth noting on an
-  otherwise-successful scrape (e.g. `screenshot_truncated` when a long page exceeded the
-  scrolling-screenshot height cap). safe to switch on. fresh scrapes only — cache hits omit them.
+  otherwise-successful scrape. each one means an output hit a cap and was truncated —
+  loudly, never silently — so the payload is partial but still usable:
+  - `screenshot_truncated` — a long page exceeded the scrolling-screenshot height cap.
+  - `links_truncated` — the page had more than 30 000 links.
+  - `inline_images_truncated` — the page had more than 10 000 inline images.
+  - `raw_html_truncated` — the serialized body html exceeded 10 000 000 characters.
+  - `metadata_truncated` — the serialized head html exceeded 2 000 000 characters.
+
+  safe to switch on — the `ScrapeWarningCode` literal gives you the known set, while the
+  field itself stays `list[str]` so a code added later still deserializes. fresh scrapes
+  only — cache hits omit them.
 - `unsupported_fields` — if you request an extract that doesn't apply to the content type
   (e.g. `markdown` of a pdf), that field name comes back here and the rest of your payload is
   still returned.
@@ -352,12 +361,18 @@ every failure raised by the sdk subclasses `CrawlbruleeError`:
 | `UsageAllocationError` | plan limit hit. exposes `reason` and `usage`. |
 | `ValidationError` | bad request (`invalid_url`, `url_too_long`, `blocked_url`, …). |
 | `NotFoundError` | 404 (e.g. unknown async `job_id`). |
+| `ServiceUnavailableError` | 503 (`service_unavailable`). transient infrastructure failure on our side — retry it. |
 | `TransportError` | network failure, timeout, or non-json response. |
 | `CrawlbruleeError` | base class — any other api error. always has `status`, `error_name`, `message`. |
 
 ```python
 import time
-from crawlbrulee import Crawlbrulee, RateLimitError, UsageAllocationError
+from crawlbrulee import (
+    Crawlbrulee,
+    RateLimitError,
+    ServiceUnavailableError,
+    UsageAllocationError,
+)
 
 client = Crawlbrulee.from_env()
 try:
@@ -365,9 +380,19 @@ try:
 except RateLimitError as err:
     time.sleep((err.retry_after_ms or 1000) / 1000)
     # retry…
+except ServiceUnavailableError:
+    time.sleep(1)
+    # retry with backoff — nothing about the request needs changing
 except UsageAllocationError as err:
     print("Plan limit hit:", err.reason, err.usage)
 ```
+
+**`ServiceUnavailableError` is not an auth problem.** a `503` means a piece of our
+infrastructure failed while handling your request — the request never reached a verdict
+about your key or your page. it is transient and retryable, and **not** a reason to rotate
+an api key. a key that is genuinely unknown or expired still comes back as a `401`
+`invalid_credentials` (an `AuthenticationError`), which is the only failure worth
+re-checking your credentials over.
 
 for exhaustive branching, switch on `err.error_name`. the api docs carry the canonical
 [error reference](https://crawlbrulee.com/docs/errors) — every `error_name`, what causes it,

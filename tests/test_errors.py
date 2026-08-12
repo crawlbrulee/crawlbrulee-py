@@ -11,6 +11,7 @@ from crawlbrulee import (
     CrawlbruleeError,
     NotFoundError,
     RateLimitError,
+    ServiceUnavailableError,
     UsageAllocationError,
     ValidationError,
 )
@@ -89,6 +90,23 @@ def test_unsupported_screenshot_output_maps_to_validation_error() -> None:
     assert isinstance(err, ValidationError)
     assert err.error_name == "unsupported_screenshot_output"
     assert err.status == 422
+
+
+def test_service_unavailable_maps_by_name() -> None:
+    # 503: infra failure during the token lookup. Must NOT read as an auth error.
+    err = create_api_error(
+        {"name": "service_unavailable", "message": "temporarily unavailable"},
+        503,
+    )
+    assert isinstance(err, ServiceUnavailableError)
+    assert not isinstance(err, AuthenticationError)
+    assert err.error_name == "service_unavailable"
+    assert err.status == 503
+
+
+def test_service_unavailable_status_fallback_for_unknown_name() -> None:
+    err = create_api_error({"name": "weird", "message": "x"}, 503)
+    assert isinstance(err, ServiceUnavailableError)
 
 
 def test_name_first_beats_status_heuristics() -> None:

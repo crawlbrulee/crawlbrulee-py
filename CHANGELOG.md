@@ -4,6 +4,38 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## unreleased
+
+### added
+
+- **`ServiceUnavailableError` — a `503` is no longer disguised as a bad key.** when an
+  infrastructure failure interrupted the api-token lookup, the api used to answer `401`
+  `invalid_credentials`, which reads as "your key is wrong" and invites a pointless key
+  rotation. every authenticated route now answers `503` `service_unavailable` for that
+  case instead, and the sdk raises the new `ServiceUnavailableError` for it — mapped both
+  by name and as the `status == 503` fallback. it is transient and retryable: retry with
+  backoff, and leave your api key alone. a genuinely unknown or expired key still raises
+  `AuthenticationError` on a `401`, unchanged.
+- **`service_unavailable`** joins `ApiErrorName`.
+- **four more `warnings` codes.** an extract that hits a per-page cap is truncated loudly
+  rather than silently, and says so: `links_truncated` (more than 30 000 links),
+  `inline_images_truncated` (more than 10 000 inline images), `raw_html_truncated`
+  (serialized body html past 10 000 000 characters), and `metadata_truncated` (serialized
+  head html past 2 000 000 characters). they join the pre-existing
+  `screenshot_truncated`.
+- **`ScrapeWarningCode`** — a literal alias of the five codes, for callers that want to
+  match them exhaustively. `ScrapeResponse.warnings` itself stays `list[str]` so a code
+  added later still deserializes.
+
+### changed (docs)
+
+- **`viewport.device_scale_factor` is capped at `3`, not `4`.** the api lowered the cap on
+  2026-08-11 (raster and stitch memory scale with the square of it); the sdk's docstring
+  still described the old ceiling. values above `3` are rejected with a `400`. this is a
+  documentation correction only — the sdk never validated the field client-side.
+- `extract.links`, `extract.images`, `extract.raw_html` and `extract.metadata` now document
+  their per-page caps and the warning code each one emits when truncated.
+
 ## 0.10.0 (2026-08-03)
 
 ### removed (breaking)

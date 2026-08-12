@@ -115,6 +115,17 @@ class UsageAllocationError(CrawlbruleeError):
         self.usage: dict[str, Any] | None = details.get("details")
 
 
+class ServiceUnavailableError(CrawlbruleeError):
+    """Raised for HTTP 503 responses (``service_unavailable``).
+
+    A transient infrastructure failure on our side -- the request never reached
+    a verdict about your key or your page. **Retry it**, ideally with backoff.
+    It is *not* a signal that your API key is wrong, so do not rotate a key in
+    response to it; a genuinely bad or expired key still returns a 401
+    ``invalid_credentials``.
+    """
+
+
 class TransportError(CrawlbruleeError):
     """Raised when a request cannot be sent or no structured response is parsed.
 
@@ -167,6 +178,11 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
     if name in ("invalid_credentials", "access_denied"):
         return AuthenticationError(message, status=status, error_name=name, response=body)
 
+    if name == "service_unavailable":
+        return ServiceUnavailableError(
+            message, status=status, error_name="service_unavailable", response=body
+        )
+
     if name == "not_found":
         return NotFoundError(message, status=status, error_name="not_found", response=body)
 
@@ -190,5 +206,7 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
         return AuthenticationError(message, status=status, error_name=name, response=body)
     if status == 404:
         return NotFoundError(message, status=status, error_name=name, response=body)
+    if status == 503:
+        return ServiceUnavailableError(message, status=status, error_name=name, response=body)
 
     return CrawlbruleeError(message, status=status, error_name=name, details=details, response=body)
