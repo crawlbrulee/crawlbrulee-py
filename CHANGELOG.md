@@ -4,6 +4,13 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 0.11.1 (2026-08-17)
+
+### changed (docs)
+
+- improved the ``advanced`` proxy tier description to focus on its higher retrieval success rate.
+  no request behavior, type, or response shape changed.
+
 ## 0.11.0 (2026-08-14)
 
 ### added
