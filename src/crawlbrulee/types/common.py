@@ -8,7 +8,7 @@ from typing import Literal, TypedDict
 #: Proxy tier used to route the fetch.
 #:
 #: - ``basic`` -- datacenter proxy, lowest cost.
-#: - ``advanced`` -- residential proxy, higher success rate on protected sites.
+#: - ``advanced`` -- enhanced proxy tier with a higher success rate.
 #: - ``auto`` -- tries the basic tier first and escalates to advanced on failure;
 #:   billed at the delivered tier (default).
 ProxyTier = Literal["basic", "advanced", "auto"]
