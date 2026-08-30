@@ -141,7 +141,14 @@ def test_get_scrape_status_done_carries_usage_meta() -> None:
                 "job_id": "job_123",
                 "status": "done",
                 "created_at": "2026-05-28T00:00:00Z",
-                "response_meta": {"usage": {"credits": 2, "proxy": "advanced", "cache_hit": False}},
+                "response_meta": {
+                    "usage": {
+                        "credits": 5,
+                        "engine": "text",
+                        "proxy": "advanced",
+                        "screenshot_slices": 0,
+                    }
+                },
             }
         )
 
@@ -149,9 +156,10 @@ def test_get_scrape_status_done_carries_usage_meta() -> None:
     status = client.get_scrape_status("job_123")
     assert status.status == "done"
     assert status.response_meta is not None
-    assert status.response_meta.usage.credits == 2
+    assert status.response_meta.usage.credits == 5
+    assert status.response_meta.usage.engine == "text"
     assert status.response_meta.usage.proxy == "advanced"
-    assert status.response_meta.usage.cache_hit is False
+    assert status.response_meta.usage.screenshot_slices == 0
 
 
 def test_job_id_is_url_encoded() -> None:

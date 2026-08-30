@@ -4,6 +4,19 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 0.12.0 (2026-08-30)
+
+### changed (breaking)
+
+- **`response_meta.usage` now mirrors engine-aware billing.** `Usage.cache_hit` is removed.
+  use `usage.engine == "cache"` to identify a cache hit. every successful scrape, map,
+  terminal async status, and successful completion webhook now reports
+  `credits`, `engine`, `proxy`, and `screenshot_slices`.
+- **credits reflect the delivered engine.** `engine` is `text` (1-credit base), `browser`
+  (3), `screenshot` (5), or `cache` (0). the resolved `advanced` proxy tier multiplies
+  that base by 5. `screenshot_slices` is `1` when this request produced slices and adds
+  one flat credit outside the proxy multiplier; otherwise it is `0`.
+
 ## 0.11.1 (2026-08-17)
 
 ### changed (docs)

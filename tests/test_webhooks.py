@@ -198,16 +198,22 @@ def test_parse_webhook_metadata_and_usage_meta() -> None:
     body = _success_webhook_dict("job_77")
     body["data"]["metadata"] = {"order_id": "abc-123"}
     body["data"]["response_meta"] = {
-        "usage": {"credits": 1, "proxy": "advanced", "cache_hit": False}
+        "usage": {
+            "credits": 15,
+            "engine": "browser",
+            "proxy": "advanced",
+            "screenshot_slices": 0,
+        }
     }
 
     wh = from_dict(ScrapeCompleteWebhook, body)
     assert wh.data.job_id == "job_77"
     assert wh.data.metadata == {"order_id": "abc-123"}
     assert wh.data.response_meta is not None
-    assert wh.data.response_meta.usage.credits == 1
+    assert wh.data.response_meta.usage.credits == 15
+    assert wh.data.response_meta.usage.engine == "browser"
     assert wh.data.response_meta.usage.proxy == "advanced"
-    assert wh.data.response_meta.usage.cache_hit is False
+    assert wh.data.response_meta.usage.screenshot_slices == 0
 
 
 def test_fetch_from_webhook_success_dict() -> None:

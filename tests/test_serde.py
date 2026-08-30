@@ -106,7 +106,12 @@ def test_from_dict_handles_null_for_non_optional_list_field() -> None:
         {
             "links": None,
             "response_meta": {
-                "usage": {"credits": 0, "proxy": "basic", "cache_hit": True},
+                "usage": {
+                    "credits": 0,
+                    "engine": "cache",
+                    "proxy": "basic",
+                    "screenshot_slices": 0,
+                },
                 "pagination": {
                     "page": 1,
                     "limit": 10,

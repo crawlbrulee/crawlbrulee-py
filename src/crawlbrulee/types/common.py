@@ -18,6 +18,10 @@ ProxyTier = Literal["basic", "advanced", "auto"]
 #: server-side to ``basic`` or ``advanced`` and is never echoed here.
 ResolvedProxyTier = Literal["basic", "advanced"]
 
+#: Engine base the operation was billed at. This reflects what the server
+#: delivered, not what the request asked for. ``cache`` identifies a cache hit.
+BillingEngine = Literal["text", "browser", "screenshot", "cache"]
+
 #: Screenshot capture mode: visible viewport or the full scrollable page.
 ScreenshotType = Literal["viewport", "full_page"]
 
@@ -112,15 +116,18 @@ class Usage:
     which proxy tier actually ran -- without a separate ``/api/usage`` call.
     """
 
-    #: Credits charged for this request. ``0`` on a fully cached result; only
-    #: parts still computed fresh (e.g. a newly produced screenshot-slice
-    #: variant) are charged.
+    #: Credits charged for this request: engine base multiplied by the resolved
+    #: proxy multiplier, plus ``screenshot_slices``.
     credits: int
+    #: Engine base billed for the delivered result: ``text`` (1), ``browser``
+    #: (3), ``screenshot`` (5), or ``cache`` (0).
+    engine: BillingEngine
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
+    #: ``advanced`` multiplies the engine base by 5.
     proxy: ResolvedProxyTier
-    #: Whether the result was served from cache (see ``credits`` for what a
-    #: cached result costs).
-    cache_hit: bool
+    #: Screenshot-slice add-on billed for this request: ``1`` when slices were
+    #: produced during this request, otherwise ``0``.
+    screenshot_slices: int
 
 
 #: Machine-readable error names returned by the crawlbrulee API. Stable

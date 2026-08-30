@@ -17,7 +17,7 @@ this readme covers the sdk itself — the clients, the types, and the python-sid
 for how the api behaves — endpoints, parameters, and error semantics — please see our
 [api docs](https://crawlbrulee.com/docs).
 
-> **status:** v0.11.1 (beta). the api surface is stabilizing — expect minor breaking
+> **status:** v0.12.0 (beta). the api surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 **get a free api key** → [dashboard.crawlbrulee.com](https://dashboard.crawlbrulee.com)
@@ -51,7 +51,8 @@ print(page.metadata.title if page.metadata else None)
 
 # Per-request billing + routing usage rides along on every success:
 if page.response_meta:
-    print(page.response_meta.usage.credits, page.response_meta.usage.proxy, page.response_meta.usage.cache_hit)
+    usage = page.response_meta.usage
+    print(usage.credits, usage.engine, usage.proxy, usage.screenshot_slices)
 ```
 
 ### async
@@ -174,12 +175,14 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 - `metadata` — extracted page metadata (`title`, `description`, OG/Twitter
   tags, …), present when `extract.metadata` is on (the default).
 - `response_meta.usage` — per-request billing + routing usage:
-  - `credits` — credits charged. `0` on a fully cached result; only parts still
-    computed fresh (e.g. a newly produced screenshot-slice variant) are charged.
+  - `credits` — credits charged: engine base × proxy multiplier + screenshot slices.
+  - `engine` — the delivered billing base: `"text"`, `"browser"`, `"screenshot"`,
+    or `"cache"`. use `engine == "cache"` to identify a cache hit.
   - `proxy` — the proxy tier that actually ran: `"basic"` or `"advanced"` (the
     **resolved** tier — `"auto"` is decided server-side and is never echoed
     here).
-  - `cache_hit` — whether the result was served from cache.
+  - `screenshot_slices` — `1` when this request produced screenshot slices and
+    billed the flat +1 add-on; otherwise `0`.
 - `warnings` — a list of stable string codes flagging something worth noting on an
   otherwise-successful scrape, in two families. an output hit a cap and was truncated —
   loudly, never silently — so the payload is partial but still usable:
@@ -209,7 +212,7 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 
 ```python
 page = client.scrape(url="https://example.com")
-if page.response_meta and page.response_meta.usage.cache_hit:
+if page.response_meta and page.response_meta.usage.engine == "cache":
     print("served from cache —", page.response_meta.usage.credits, "credits")
 ```
 
@@ -225,10 +228,12 @@ result = client.map(
     limit=1_000,
 )
 print(len(result.links), "of", result.response_meta.pagination.total_pages, "pages")
-print(result.response_meta.usage.credits, "credits", "(cache hit)" if result.response_meta.usage.cache_hit else "")
+usage = result.response_meta.usage
+print(usage.credits, "credits", "(cache hit)" if usage.engine == "cache" else "")
 ```
 
-`result.response_meta` carries `usage` (credits / resolved `proxy` / `cache_hit`)
+`result.response_meta` carries `usage` (`credits` / billed `engine` / resolved `proxy` /
+`screenshot_slices`)
 alongside the existing `pagination` and `truncation` blocks. see the
 [map endpoint](https://crawlbrulee.com/docs/map) for discovery rules and pagination
 semantics.
@@ -295,8 +300,8 @@ job = client.scrape_async(
   deliveries without keeping your own `job_id` mapping.
 
 the delivered `scrape.complete` payload carries the echoed object on
-`data.metadata`, plus `data.response_meta.usage` (credits / resolved `proxy` /
-`cache_hit`) for the finished job:
+`data.metadata`, plus `data.response_meta.usage` (`credits` / billed `engine` /
+resolved `proxy` / `screenshot_slices`) for the finished job:
 
 ```python
 webhook = ScrapeCompleteWebhook(...)  # parsed from the delivery (see below)

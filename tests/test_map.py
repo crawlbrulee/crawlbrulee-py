@@ -18,7 +18,12 @@ def test_map_posts_body_and_parses_meta() -> None:
             {
                 "links": [{"url": "https://example.com/a"}, {"url": "https://example.com/b"}],
                 "response_meta": {
-                    "usage": {"credits": 1, "proxy": "basic", "cache_hit": False},
+                    "usage": {
+                        "credits": 1,
+                        "engine": "text",
+                        "proxy": "basic",
+                        "screenshot_slices": 0,
+                    },
                     "pagination": {
                         "page": 1,
                         "limit": 1000,
@@ -56,8 +61,9 @@ def test_map_posts_body_and_parses_meta() -> None:
     assert len(result.links) == 2
     assert result.links[0].url == "https://example.com/a"
     assert result.response_meta.usage.credits == 1
+    assert result.response_meta.usage.engine == "text"
     assert result.response_meta.usage.proxy == "basic"
-    assert result.response_meta.usage.cache_hit is False
+    assert result.response_meta.usage.screenshot_slices == 0
     assert result.response_meta.pagination.total == 2
     assert result.response_meta.pagination.has_more is False
     assert result.response_meta.truncation.storage_capped is False

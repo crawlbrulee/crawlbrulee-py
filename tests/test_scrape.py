@@ -27,7 +27,12 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
                 ],
                 "metadata": {"title": "Example", "keywords": ["a", "b"]},
                 "response_meta": {
-                    "usage": {"credits": 1, "proxy": "basic", "cache_hit": False},
+                    "usage": {
+                        "credits": 1,
+                        "engine": "text",
+                        "proxy": "basic",
+                        "screenshot_slices": 0,
+                    },
                 },
                 "warnings": ["screenshot_truncated"],
             }
@@ -51,8 +56,9 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
     assert page.metadata.keywords == ["a", "b"]
     assert page.response_meta is not None
     assert page.response_meta.usage.credits == 1
+    assert page.response_meta.usage.engine == "text"
     assert page.response_meta.usage.proxy == "basic"
-    assert page.response_meta.usage.cache_hit is False
+    assert page.response_meta.usage.screenshot_slices == 0
     assert page.warnings == ["screenshot_truncated"]
 
 
@@ -64,7 +70,12 @@ def test_scrape_parses_meta_usage_on_cache_hit() -> None:
                 "requested_url": "https://example.com",
                 "markdown": "# cached",
                 "response_meta": {
-                    "usage": {"credits": 0, "proxy": "advanced", "cache_hit": True},
+                    "usage": {
+                        "credits": 0,
+                        "engine": "cache",
+                        "proxy": "advanced",
+                        "screenshot_slices": 0,
+                    },
                 },
             }
         )
@@ -73,8 +84,9 @@ def test_scrape_parses_meta_usage_on_cache_hit() -> None:
     page = client.scrape(url="https://example.com")
     assert page.response_meta is not None
     assert page.response_meta.usage.credits == 0
+    assert page.response_meta.usage.engine == "cache"
     assert page.response_meta.usage.proxy == "advanced"
-    assert page.response_meta.usage.cache_hit is True
+    assert page.response_meta.usage.screenshot_slices == 0
 
 
 def test_scrape_body_omits_none_and_nests_dataclasses() -> None:
