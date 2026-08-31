@@ -4,6 +4,14 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## unreleased
+
+### changed (breaking)
+
+- **map usage no longer exposes `screenshot_slices`.** the exported `MapUsage` type contains
+  only `credits`, `engine`, and `proxy`; scrape, async, and webhook usage retain the slice
+  field.
+
 ## 0.12.0 (2026-08-30)
 
 ### changed (breaking)

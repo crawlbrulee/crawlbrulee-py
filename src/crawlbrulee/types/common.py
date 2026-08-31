@@ -111,7 +111,7 @@ class ScreenshotRequest:
 class Usage:
     """Per-request billing + routing usage, reported on ``response_meta.usage``.
 
-    Returned on every scrape/map success, on a terminal async status, and in the
+    Returned on every scrape success, on a terminal async status, and in the
     ``scrape.complete`` webhook payload, so callers can attribute spend and see
     which proxy tier actually ran -- without a separate ``/api/usage`` call.
     """
@@ -128,6 +128,20 @@ class Usage:
     #: Screenshot-slice add-on billed for this request: ``1`` when slices were
     #: produced during this request, otherwise ``0``.
     screenshot_slices: int
+
+
+@dataclass
+class MapUsage:
+    """Per-request billing + routing usage for a map response."""
+
+    #: Credits charged for this request: engine base multiplied by the
+    #: resolved proxy multiplier.
+    credits: int
+    #: Engine base billed for the delivered result: ``text`` (1), ``browser``
+    #: (3), or ``cache`` (0).
+    engine: BillingEngine
+    #: The proxy tier actually used (the resolved tier -- never ``auto``).
+    proxy: ResolvedProxyTier
 
 
 #: Machine-readable error names returned by the crawlbrulee API. Stable

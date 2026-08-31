@@ -22,7 +22,6 @@ def test_map_posts_body_and_parses_meta() -> None:
                         "credits": 1,
                         "engine": "text",
                         "proxy": "basic",
-                        "screenshot_slices": 0,
                     },
                     "pagination": {
                         "page": 1,
@@ -63,7 +62,7 @@ def test_map_posts_body_and_parses_meta() -> None:
     assert result.response_meta.usage.credits == 1
     assert result.response_meta.usage.engine == "text"
     assert result.response_meta.usage.proxy == "basic"
-    assert result.response_meta.usage.screenshot_slices == 0
+    assert not hasattr(result.response_meta.usage, "screenshot_slices")
     assert result.response_meta.pagination.total == 2
     assert result.response_meta.pagination.has_more is False
     assert result.response_meta.truncation.storage_capped is False

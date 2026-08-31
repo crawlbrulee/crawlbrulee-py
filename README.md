@@ -232,8 +232,7 @@ usage = result.response_meta.usage
 print(usage.credits, "credits", "(cache hit)" if usage.engine == "cache" else "")
 ```
 
-`result.response_meta` carries `usage` (`credits` / billed `engine` / resolved `proxy` /
-`screenshot_slices`)
+`result.response_meta` carries map usage (`credits` / billed `engine` / resolved `proxy`)
 alongside the existing `pagination` and `truncation` blocks. see the
 [map endpoint](https://crawlbrulee.com/docs/map) for discovery rules and pagination
 semantics.

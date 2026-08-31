@@ -110,7 +110,6 @@ def test_from_dict_handles_null_for_non_optional_list_field() -> None:
                     "credits": 0,
                     "engine": "cache",
                     "proxy": "basic",
-                    "screenshot_slices": 0,
                 },
                 "pagination": {
                     "page": 1,
