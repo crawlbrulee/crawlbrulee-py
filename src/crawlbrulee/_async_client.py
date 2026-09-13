@@ -24,6 +24,7 @@ from .types.common import ProxyTier
 from .types.map import MapCache, MapLocation, MapResponse, MapTypes
 from .types.scrape import (
     ScrapeCache,
+    ScrapeCleanup,
     ScrapeExtract,
     ScrapeLocation,
     ScrapeResponse,
@@ -101,13 +102,13 @@ class AsyncCrawlbrulee:
         extract: ScrapeExtract | dict[str, Any] | None = None,
         cache: ScrapeCache | dict[str, Any] | None = None,
         require_js: bool | None = None,
-        exclude_selectors: list[str] | None = None,
+        cleanup: ScrapeCleanup | dict[str, Any] | None = None,
         proxy: ProxyTier | None = None,
         location: ScrapeLocation | dict[str, Any] | None = None,
         timeout: float | None = None,
     ) -> ScrapeResponse:
         """Scrape a URL and return the extracted content. Awaits until done."""
-        body = scrape_body(url, extract, cache, require_js, exclude_selectors, proxy, location)
+        body = scrape_body(url, extract, cache, require_js, cleanup, proxy, location)
         data = await self._transport.request("POST", "/api/scrape", body=body, timeout=timeout)
         return from_dict(ScrapeResponse, data)
 
@@ -118,7 +119,7 @@ class AsyncCrawlbrulee:
         extract: ScrapeExtract | dict[str, Any] | None = None,
         cache: ScrapeCache | dict[str, Any] | None = None,
         require_js: bool | None = None,
-        exclude_selectors: list[str] | None = None,
+        cleanup: ScrapeCleanup | dict[str, Any] | None = None,
         proxy: ProxyTier | None = None,
         location: ScrapeLocation | dict[str, Any] | None = None,
         webhook: ScrapeWebhook | dict[str, Any] | None = None,
@@ -131,7 +132,7 @@ class AsyncCrawlbrulee:
         :func:`crawlbrulee.verify_webhook_signature`).
         """
         body = async_scrape_body(
-            url, extract, cache, require_js, exclude_selectors, proxy, location, webhook
+            url, extract, cache, require_js, cleanup, proxy, location, webhook
         )
         data = await self._transport.request(
             "POST", "/api/scrape/async", body=body, timeout=timeout
@@ -258,7 +259,21 @@ class AsyncCrawlbrulee:
         location: MapLocation | dict[str, Any] | None = None,
         timeout: float | None = None,
     ) -> MapResponse:
-        """Build (or return a cached) site link-map for a domain."""
+        """Build (or return a cached) site link-map for a domain.
+
+        Every knob is optional; anything left as ``None`` is not sent, so the
+        server's own default applies. ``max_urls`` defaults to 5000 (maximum
+        100000) and ``limit`` -- the page size -- defaults to 5000 (maximum
+        10000).
+
+        ``max_urls`` is a crawl budget, not a slice taken at the end: sitemap
+        discovery stops as soon as that many URLs are found. So a map that hit
+        the budget comes back with exactly ``max_urls`` links and
+        ``response_meta.truncation.response_capped`` still ``False``; the signal
+        that the site has more is
+        ``response_meta.truncation.discovery_cap_reason == "max_urls"``. Ask
+        again with a higher ``max_urls`` to get them.
+        """
         body = map_body(url, proxy, sitemap_only, types, cache, max_urls, page, limit, location)
         data = await self._transport.request("POST", "/api/map", body=body, timeout=timeout)
         return from_dict(MapResponse, data)

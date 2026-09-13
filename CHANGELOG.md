@@ -4,13 +4,51 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
-## unreleased
+## 0.15.0 (2026-09-13)
+
+### added
+
+- **`MapTruncation` gains three discovery fields** — `discovery_capped` (sitemap discovery
+  stopped before reading every sitemap file it found, so the site has more pages than the map
+  lists), `sitemaps_skipped` (how many sitemap files were skipped or only partly read), and
+  `discovery_cap_reason` (which limit stopped discovery first, or `None`). the new
+  `DiscoveryCapReason` type is exported: `"max_urls" | "time" | "file_budget" | "depth" |
+  "file_size"`. only `max_urls` is actionable — ask again with a higher `max_urls`. a server
+  that omits these fields parses as `False` / `0` / `None`, so older servers still work.
+- **`max_urls` is a crawl budget, not a trim.** discovery now stops at the caller's
+  `max_urls`, so a capped map returns exactly `max_urls` links with `response_capped` still
+  `False`; `discovery_cap_reason == "max_urls"` is the signal that more exists.
+
+### changed
+
+- **server-side map defaults dropped to 5000.** `max_urls` now defaults to `5000` (was
+  `100000`) and `limit` to `5000` (was `10000`); the maximums are unchanged at `100000` and
+  `10000`. the sdk sends no defaults of its own, so this needs no code change — only the
+  docs moved.
+- **map link URLs match `scrape`'s returned `url`.** both come back in the same normalized
+  form.
+
+- **`AntibotBlockedError`** — a `403` with `name: "antibot_blocked"` (the target site's bot
+  protection blocked the request) now raises its own class instead of `AuthenticationError`,
+  so callers can branch on it (raise the proxy tier, or skip the site) without mistaking it
+  for a credentials problem. returned by both `scrape` and `map`. a `403` with an
+  unrecognized name still falls back to `AuthenticationError`.
+- **`TooManyRedirectsError`** — a `422` with `name: "too_many_redirects"` (the target site
+  redirected the request in a loop, or through more hops than the api follows) raises its own
+  class. target-side like `AntibotBlockedError`: not a key problem and not a bad request, so it
+  is neither `AuthenticationError` nor `ValidationError`. returned by both `scrape` and `map`.
+- **`PageTooLargeError`** — a `422` with `name: "page_too_large"` (the page's html was too large
+  to process) raises its own class. about the page, not your request, so it is neither
+  `AuthenticationError` nor `ValidationError`. it is terminal: the same url fails the same way,
+  so do not retry it. returned by `scrape`.
+
+## 0.13.0 (2026-09-02)
 
 ### changed (breaking)
 
 - **map usage no longer exposes `screenshot_slices`.** the exported `MapUsage` type contains
   only `credits`, `engine`, and `proxy`; scrape, async, and webhook usage retain the slice
-  field.
+  field. `MapUsage.engine` is narrowed to `Literal["text", "cache"]`.
 
 ## 0.12.0 (2026-08-30)
 
@@ -74,9 +112,7 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
   on the sync scrape path and drop them everywhere else. they are now stored with the result,
   so cache hits and async result fetches report the same codes, filtered to the outputs you
   requested (``raw_html_truncated`` always surfaces, since a truncated body also feeds
-  ``markdown`` and ``cleaned_html``). the ``*_unavailable`` codes only ever reach the request
-  whose own scrape degraded: a cached result missing a field you asked for is re-scraped
-  rather than served.
+  ``markdown`` and ``cleaned_html``).
 
 ## 0.10.0 (2026-08-03)
 
@@ -124,7 +160,7 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
   non-http(s) hrefs are dropped. `PageLink.internal` means same domain, where `www` and the
   bare domain count as the same and other subdomains are external.
 - `ScrapeResponse.url` is documented more precisely: the url actually scraped, after any
-  redirects, in cleaned canonical form (tracking params and fragment removed) — the base that
+  redirects, in normalized form — the base that
   `links`, `images`, and `internal` labels are computed against.
 
 ## 0.8.0 (2026-07-27)
@@ -133,16 +169,12 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
 
 - **`ScrapeCache.ignore_query_params` is gone**, because the api no longer accepts it — `cache` is
   strict, so a request carrying the field is rejected. `max_age` is now the only cache control.
-  if you were setting it, drop it and send the url you actually want cached: every non-tracking
-  query parameter is part of the cache key, so ``https://example.com/page`` and
-  ``https://example.com/page?ref=x`` are separate entries.
+  if you were setting it, drop it and send the url you actually want cached: urls that differ
+  in their query string are cached separately.
 
 ### changed
 
-- the ``url`` field is documented more precisely: known tracking parameters (``utm_*``, ``mtm_*``,
-  ``ga_*``, ``pk_*``, ``gclid``, ``fbclid``, ``msclkid``, and more) are removed before the page is
-  fetched, so they reach neither the target site nor the cache key. every other query parameter is
-  kept verbatim.
+- the ``url`` field is documented more precisely: it comes back in normalized form.
 
 ## 0.7.0 (2026-07-15)
 

@@ -101,7 +101,7 @@ def scrape_body(
     extract: Any,
     cache: Any,
     require_js: bool | None,
-    exclude_selectors: list[str] | None,
+    cleanup: Any,
     proxy: str | None,
     location: Any,
 ) -> dict[str, Any]:
@@ -112,7 +112,7 @@ def scrape_body(
             "extract": to_dict(extract),
             "cache": to_dict(cache),
             "require_js": require_js,
-            "exclude_selectors": exclude_selectors,
+            "cleanup": to_dict(cleanup),
             "proxy": proxy,
             "location": to_dict(location),
         }
@@ -124,7 +124,7 @@ def async_scrape_body(
     extract: Any,
     cache: Any,
     require_js: bool | None,
-    exclude_selectors: list[str] | None,
+    cleanup: Any,
     proxy: str | None,
     location: Any,
     webhook: Any,
@@ -134,7 +134,7 @@ def async_scrape_body(
     Same as :func:`scrape_body` plus the async-only ``webhook`` field. The sync
     ``/api/scrape`` schema rejects ``webhook``, so it lives only here.
     """
-    body = scrape_body(url, extract, cache, require_js, exclude_selectors, proxy, location)
+    body = scrape_body(url, extract, cache, require_js, cleanup, proxy, location)
     serialized = to_dict(webhook)
     if serialized is not None:
         body["webhook"] = serialized
@@ -152,7 +152,11 @@ def map_body(
     limit: int | None,
     location: Any,
 ) -> dict[str, Any]:
-    """Build the JSON body for ``/api/map``."""
+    """Build the JSON body for ``/api/map``.
+
+    ``None`` fields are dropped, so the server's defaults apply -- notably
+    ``max_urls`` (5000) and ``limit`` (5000). The SDK never substitutes its own.
+    """
     return _build_body(
         {
             "url": url,

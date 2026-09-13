@@ -50,7 +50,44 @@ class CrawlbruleeError(Exception):
 
 
 class AuthenticationError(CrawlbruleeError):
-    """Raised for 401 / 403 responses (missing, invalid, or unauthorized key)."""
+    """Raised when the API rejects your credentials -- a missing, invalid, or
+    unauthorized API key (``invalid_credentials``, ``access_denied``).
+
+    Not every 403 is a key problem: a 403 carrying ``antibot_blocked`` is the
+    *target site* blocking us and raises ``AntibotBlockedError`` instead. Only
+    an unrecognized 403 name falls back to this class.
+    """
+
+
+class AntibotBlockedError(CrawlbruleeError):
+    """Raised when the target site's anti-bot protection blocked the request
+    (HTTP 403, ``antibot_blocked``).
+
+    Not an API-key problem -- retrying the same tier rarely helps; try a higher
+    proxy tier (``proxy="advanced"``) or skip the site.
+    """
+
+
+class TooManyRedirectsError(CrawlbruleeError):
+    """Raised when the target site redirected the request in a loop, or through
+    more hops than the API follows (HTTP 422, ``too_many_redirects``).
+
+    Like ``AntibotBlockedError`` this is the target's doing -- not a key problem
+    and not a bad request -- so it is neither ``AuthenticationError`` nor
+    ``ValidationError``. Retrying rarely helps. Returned by both ``scrape``
+    and ``map``.
+    """
+
+
+class PageTooLargeError(CrawlbruleeError):
+    """Raised when the page's HTML was too large to process (HTTP 422,
+    ``page_too_large``).
+
+    Like ``TooManyRedirectsError`` this is about the page, not your request --
+    so it is neither ``AuthenticationError`` nor ``ValidationError``. It is
+    terminal: the same URL fails the same way, so do not retry it. Returned by
+    ``scrape``.
+    """
 
 
 class NotFoundError(CrawlbruleeError):
@@ -65,8 +102,8 @@ class RateLimitError(CrawlbruleeError):
     """Raised for HTTP 429 responses.
 
     ``error_name`` is always normalized to ``too_many_requests`` even when the
-    server returns a 429 with a different ``name`` (e.g. a CDN coalescing
-    upstream rate limiting). The original body is available on ``response``.
+    server returns a 429 with a different ``name``. The original body is
+    available on ``response``.
     """
 
     def __init__(
@@ -174,6 +211,19 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
             "reason": "internal_error",
         }
         return UsageAllocationError(message, status=status, details=d, response=body)
+
+    if name == "antibot_blocked":
+        return AntibotBlockedError(
+            message, status=status, error_name="antibot_blocked", response=body
+        )
+
+    if name == "too_many_redirects":
+        return TooManyRedirectsError(
+            message, status=status, error_name="too_many_redirects", response=body
+        )
+
+    if name == "page_too_large":
+        return PageTooLargeError(message, status=status, error_name="page_too_large", response=body)
 
     if name in ("invalid_credentials", "access_denied"):
         return AuthenticationError(message, status=status, error_name=name, response=body)

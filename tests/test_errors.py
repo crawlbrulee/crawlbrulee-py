@@ -7,11 +7,14 @@ import pytest
 
 from conftest import json_response, make_sync
 from crawlbrulee import (
+    AntibotBlockedError,
     AuthenticationError,
     CrawlbruleeError,
     NotFoundError,
+    PageTooLargeError,
     RateLimitError,
     ServiceUnavailableError,
+    TooManyRedirectsError,
     UsageAllocationError,
     ValidationError,
 )
@@ -144,3 +147,53 @@ def test_http_error_surfaces_as_typed_exception() -> None:
         client.scrape(url="https://example.com")
     assert excinfo.value.retry_after_ms == 2000
     assert excinfo.value.status == 429
+
+
+def test_antibot_blocked_maps_by_name() -> None:
+    # 403: the target site's bot protection blocked us. Must NOT read as a
+    # credentials problem -- the key is fine, the site said no.
+    err = create_api_error(
+        {"name": "antibot_blocked", "message": "blocked by the target site"},
+        403,
+    )
+    assert isinstance(err, AntibotBlockedError)
+    assert not isinstance(err, AuthenticationError)
+    assert err.error_name == "antibot_blocked"
+    assert err.status == 403
+
+
+def test_too_many_redirects_maps_by_name() -> None:
+    # 422: the target redirected the request in a loop. Target-side like
+    # antibot_blocked -- the request was fine, so it must NOT read as a bad
+    # request.
+    err = create_api_error(
+        {"name": "too_many_redirects", "message": "redirect loop"},
+        422,
+    )
+    assert isinstance(err, TooManyRedirectsError)
+    assert not isinstance(err, ValidationError)
+    assert err.error_name == "too_many_redirects"
+    assert err.status == 422
+
+
+def test_page_too_large_maps_by_name() -> None:
+    # 422: the page's HTML was too large to process. About the page, not the
+    # request -- so it must NOT read as a bad request, and it must not be
+    # confused with the other 422, too_many_redirects.
+    err = create_api_error(
+        {"name": "page_too_large", "message": "The page is too large or too complex to convert."},
+        422,
+    )
+    assert isinstance(err, PageTooLargeError)
+    assert not isinstance(err, ValidationError)
+    assert not isinstance(err, TooManyRedirectsError)
+    assert err.error_name == "page_too_large"
+    assert err.status == 422
+
+
+def test_unknown_name_on_403_still_maps_to_authentication_error() -> None:
+    # The status fallback is unchanged: only a recognized antibot_blocked name
+    # escapes the 401/403 -> AuthenticationError heuristic.
+    err = create_api_error({"name": "weird", "message": "x"}, 403)
+    assert isinstance(err, AuthenticationError)
+    assert not isinstance(err, AntibotBlockedError)

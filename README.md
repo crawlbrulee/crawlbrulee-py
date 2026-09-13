@@ -17,7 +17,7 @@ this readme covers the sdk itself — the clients, the types, and the python-sid
 for how the api behaves — endpoints, parameters, and error semantics — please see our
 [api docs](https://crawlbrulee.com/docs).
 
-> **status:** v0.12.0 (beta). the api surface is stabilizing — expect minor breaking
+> **status:** v0.15.0 (beta). the api surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 **get a free api key** → [dashboard.crawlbrulee.com](https://dashboard.crawlbrulee.com)
@@ -94,7 +94,7 @@ top-level request fields are plain keyword arguments. nested structures are type
 dataclasses (importable from `crawlbrulee`) — or plain `dict`s, if you prefer:
 
 ```python
-from crawlbrulee import ScrapeExtract, ScreenshotRequest
+from crawlbrulee import ScrapeCleanup, ScrapeExtract, ScreenshotRequest
 
 client.scrape(
     url="https://news.example.com/article-1",
@@ -104,9 +104,14 @@ client.scrape(
         links=True,
         screenshot=ScreenshotRequest(type="full_page", device_mode="desktop"),
     ),
+    # Shapes markdown, cleaned_html, links, images AND the screenshot.
+    # Never touches raw_html - that is always the page before any removal.
+    cleanup=ScrapeCleanup(
+        ads_and_popups=True,
+        exclude_selectors=["nav", "footer"],
+    ),
     require_js=True,
     proxy="advanced",
-    exclude_selectors=["nav", "footer"],
     cache={"max_age": 3600},          # dataclass or dict, your call
     location={"country": "US"},
 )
@@ -168,9 +173,8 @@ sync — is documented under [async scrape](https://crawlbrulee.com/docs/scrape/
 
 a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 
-- `url` — the url that was actually scraped, after any redirects, in cleaned canonical
-  form (tracking params and fragment removed) — the base that `links`, `images`, and
-  `internal` labels are computed against.
+- `url` — the url that was actually scraped, after any redirects, in normalized
+  form — the base that `links`, `images`, and `internal` labels are computed against.
 - `requested_url` — the url you requested, echoed verbatim — before any redirects.
 - `metadata` — extracted page metadata (`title`, `description`, OG/Twitter
   tags, …), present when `extract.metadata` is on (the default).
@@ -232,10 +236,46 @@ usage = result.response_meta.usage
 print(usage.credits, "credits", "(cache hit)" if usage.engine == "cache" else "")
 ```
 
+every argument is optional. leave one out and the server's default applies — the SDK
+never sends one of its own. `max_urls` defaults to **5000** (maximum 100000) and `limit`,
+the page size, defaults to **5000** (maximum 10000).
+
+`max_urls` is a crawl budget, not a slice taken at the end: sitemap discovery stops as
+soon as that many URLs are found, so a smaller value is a faster, cheaper crawl. a map
+that hit the budget comes back with exactly `max_urls` links and `response_capped` still
+`False` — the signal that the site has more is `discovery_cap_reason`:
+
+```python
+t = result.response_meta.truncation
+if t.discovery_cap_reason == "max_urls":
+    print("more pages exist — ask again with a higher max_urls")
+elif t.discovery_capped:
+    # "time", "file_budget", "depth" or "file_size" — the site itself is big,
+    # slow or deep, so a bigger max_urls will not help.
+    print("discovery stopped early:", t.discovery_cap_reason,
+          f"({t.sitemaps_skipped} sitemap files skipped or partly read)")
+```
+
 `result.response_meta` carries map usage (`credits` / billed `engine` / resolved `proxy`)
-alongside the existing `pagination` and `truncation` blocks. see the
-[map endpoint](https://crawlbrulee.com/docs/map) for discovery rules and pagination
-semantics.
+alongside the `pagination` and `truncation` blocks. `truncation` has:
+
+| field | meaning |
+| --- | --- |
+| `storage_capped` | the stored map hit the 100000-URL storage cap. |
+| `response_capped` | more links were eligible than `max_urls`, so the list was trimmed. normally only true when home-page links pushed the total past it. |
+| `total_before_max_urls` | URLs found before the `max_urls` cap was applied. |
+| `total_detected_before_storage_cap` | URLs detected during discovery before the storage cap. |
+| `discovery_capped` | discovery stopped before reading every sitemap file it found — the site has more pages than this map lists. |
+| `sitemaps_skipped` | how many sitemap files were skipped or only partly read (too large, fetch failed, or a discovery limit hit). |
+| `discovery_cap_reason` | which limit stopped discovery first, or `None`. one of `max_urls`, `time`, `file_budget`, `depth`, `file_size`. only `max_urls` is yours to change. |
+
+each link is just `{"url": ...}`. returned URLs are
+normalized, matching the `url` that `scrape` returns.
+
+against an older server that predates `discovery_capped` / `sitemaps_skipped` /
+`discovery_cap_reason`, those fields come back as `False` / `0` / `None` rather than
+raising. see the [map endpoint](https://crawlbrulee.com/docs/map) for discovery rules and
+pagination semantics.
 
 the async **status** response (`get_scrape_status`) also gains a `response_meta.usage`
 once the job is `done`:
@@ -372,6 +412,9 @@ every failure raised by the sdk subclasses `CrawlbruleeError`:
 | class | when |
 | --- | --- |
 | `AuthenticationError` | 401 / 403 (missing, invalid, or unauthorized key). |
+| `AntibotBlockedError` | 403 `antibot_blocked` — the target site's bot protection blocked us. not a key problem. |
+| `TooManyRedirectsError` | 422 `too_many_redirects` — the target site redirected in a loop. not a bad request; retrying rarely helps. |
+| `PageTooLargeError` | 422 `page_too_large` — the page's html was too large to process. terminal; do not retry it. |
 | `RateLimitError` | 429. exposes `retry_after_ms` and `limited_by` when provided. |
 | `UsageAllocationError` | plan limit hit. exposes `reason` and `usage`. |
 | `ValidationError` | bad request (`invalid_url`, `url_too_long`, `blocked_url`, …). |
@@ -401,6 +444,22 @@ except ServiceUnavailableError:
 except UsageAllocationError as err:
     print("Plan limit hit:", err.reason, err.usage)
 ```
+
+**`AntibotBlockedError` is not an auth problem either.** a `403` carrying `antibot_blocked`
+means the *target site* blocked the request, not that your key was rejected. retrying the same
+request rarely helps — use a higher proxy tier (`proxy="advanced"`) or skip the site. both
+`scrape` and `map` can return it. only a `403` with an unrecognized name still falls back to
+`AuthenticationError`.
+
+**`TooManyRedirectsError` is the target's doing too.** a `422` carrying `too_many_redirects`
+means the site redirected the request in a loop, or through more hops than the api follows. it
+is not a `ValidationError`, because nothing about your request was wrong. retrying rarely helps.
+both `scrape` and `map` can return it.
+
+**`PageTooLargeError` is about the page, not the request.** a `422` carrying `page_too_large`
+means the page's html was too large to process. it is not a `ValidationError`, because nothing
+about your request was wrong. it is terminal: the same url will fail the same way, so do not
+retry it — scrape a smaller page instead. `scrape` returns it; `map` does not.
 
 **`ServiceUnavailableError` is not an auth problem.** a `503` means a piece of our
 infrastructure failed while handling your request — the request never reached a verdict

@@ -18,7 +18,7 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
         return json_response(
             {
                 "url": "https://example.com",
-                "requested_url": "https://example.com/?utm_source=news",
+                "requested_url": "https://example.com/?ref=news",
                 "content_type": "text/html",
                 "markdown": "# Hello",
                 "links": [
@@ -46,7 +46,7 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
     assert captured["method"] == "POST"
     assert captured["path"] == "/api/scrape"
     assert page.url == "https://example.com"
-    assert page.requested_url == "https://example.com/?utm_source=news"
+    assert page.requested_url == "https://example.com/?ref=news"
     assert page.markdown == "# Hello"
     assert page.links is not None
     assert page.links[0].text == "Home"

@@ -19,11 +19,14 @@ from ._async_client import AsyncCrawlbrulee
 from ._client import Crawlbrulee
 from ._config import DEFAULT_BASE_URL, ENV_API_KEY, USER_AGENT, __version__
 from ._errors import (
+    AntibotBlockedError,
     AuthenticationError,
     CrawlbruleeError,
     NotFoundError,
+    PageTooLargeError,
     RateLimitError,
     ServiceUnavailableError,
+    TooManyRedirectsError,
     TransportError,
     UsageAllocationError,
     ValidationError,
@@ -42,9 +45,12 @@ __all__ = [
     # errors
     "CrawlbruleeError",
     "AuthenticationError",
+    "AntibotBlockedError",
     "NotFoundError",
+    "PageTooLargeError",
     "RateLimitError",
     "ServiceUnavailableError",
+    "TooManyRedirectsError",
     "TransportError",
     "UsageAllocationError",
     "ValidationError",

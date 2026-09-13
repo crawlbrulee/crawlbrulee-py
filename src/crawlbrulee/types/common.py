@@ -21,21 +21,13 @@ ResolvedProxyTier = Literal["basic", "advanced"]
 #: Engine base the operation was billed at. This reflects what the server
 #: delivered, not what the request asked for. ``cache`` identifies a cache hit.
 BillingEngine = Literal["text", "browser", "screenshot", "cache"]
+MapBillingEngine = Literal["text", "cache"]
 
 #: Screenshot capture mode: visible viewport or the full scrollable page.
 ScreenshotType = Literal["viewport", "full_page"]
 
 #: Emulated device class for the viewport (drives default width/height).
 ScreenshotDeviceMode = Literal["desktop", "mobile"]
-
-
-@dataclass
-class ScreenshotCleanup:
-    """Pre-capture cleanup options applied to the page before the screenshot."""
-
-    #: Remove ads, cookie banners, and popups before capturing. Defaults to
-    #: ``True`` server-side.
-    ads_and_popups: bool | None = None
 
 
 @dataclass
@@ -99,8 +91,6 @@ class ScreenshotRequest:
     viewport: ScreenshotViewport | None = None
     #: Emulate desktop or mobile. Defaults to ``desktop``.
     device_mode: ScreenshotDeviceMode | None = None
-    #: Page cleanup applied before capture.
-    cleanup: ScreenshotCleanup | None = None
     #: Pre-capture actions (waits and scrolls). Maximum 5 entries.
     actions_before: list[ScreenshotWaitAction | ScreenshotScrollAction] | None = None
     #: Post-capture actions (e.g. slice into tiles). Maximum 1 entry.
@@ -137,9 +127,8 @@ class MapUsage:
     #: Credits charged for this request: engine base multiplied by the
     #: resolved proxy multiplier.
     credits: int
-    #: Engine base billed for the delivered result: ``text`` (1), ``browser``
-    #: (3), or ``cache`` (0).
-    engine: BillingEngine
+    #: ``text`` for fresh discovery or ``cache`` for a cached result.
+    engine: MapBillingEngine
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
     proxy: ResolvedProxyTier
 
@@ -171,6 +160,8 @@ ApiErrorName = Literal[
     "unsupported_screenshot_output",
     "validation_error",
     "antibot_blocked",
+    "too_many_redirects",
+    "page_too_large",
 ]
 
 #: Reason a usage allocation was denied (when ``name == usage_allocation_error``).

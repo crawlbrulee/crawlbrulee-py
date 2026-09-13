@@ -15,7 +15,11 @@ from .common import ScreenshotRequest, ScreenshotType, Usage
 @dataclass
 class ScrapeExtract:
     """Which content formats to extract. The default request extracts
-    ``metadata + cleaned_html``."""
+    ``metadata + cleaned_html``.
+
+    ``extract`` only selects what is returned. Changing it does not change
+    whether a request is served from cache.
+    """
 
     #: Extract page metadata (title, description, OG/Twitter tags). Default ``True``.
     #: Read from at most 2 000 000 characters of serialized ``<head>`` HTML per
@@ -46,15 +50,32 @@ class ScrapeExtract:
 
 
 @dataclass
+class ScrapeCleanup:
+    """What is removed from the page before any output is built.
+
+    Applies to ``markdown``, ``cleaned_html``, ``links`` and ``images`` on every
+    engine, and to the screenshot. It never applies to ``raw_html`` — that is
+    always the page as it arrived, before anything was removed.
+    """
+
+    #: Remove ads, cookie banners, consent dialogs and chat widgets. Defaults to
+    #: ``True`` server-side. Set it to ``False`` to capture the page as-is, or to
+    #: get past a site that refuses to serve an ad-blocking client.
+    ads_and_popups: bool | None = None
+    #: CSS selectors whose elements are removed before anything is captured. Use
+    #: it for a banner or widget ``ads_and_popups`` does not recognise. At most
+    #: 100 selectors, each at most 500 characters. Sending any selector here
+    #: makes the request skip the cache, so it always costs a live fetch.
+    exclude_selectors: list[str] | None = None
+
+
+@dataclass
 class ScrapeCache:
     """Cache settings for a scrape request.
 
-    ``max_age`` is the only cache control. The cache key is built from the url
-    you request: known tracking parameters (``utm_*``, ``mtm_*``, ``ga_*``,
-    ``pk_*``, ``gclid``, ``fbclid``, ``msclkid``, and more) are stripped before
-    the page is fetched, so they reach neither the target site nor the key.
-    Every other query parameter is kept verbatim and is part of the key, so
-    ``/page`` and ``/page?ref=x`` are separate entries.
+    ``max_age`` is the only cache control. ``cleanup.exclude_selectors`` and a
+    non-zero ``actions_before`` wait or scroll disable the cache for that
+    request.
     """
 
     #: Maximum cache age: a number of seconds (non-negative int) or an ISO-8601
@@ -247,9 +268,9 @@ class ScrapeResponse:
     """Successful response from ``POST /api/scrape`` and
     ``GET /api/scrape/result/:job_id``."""
 
-    #: The URL that was actually scraped, after any redirects, in cleaned
-    #: canonical form (tracking params and fragment removed) -- the base that
-    #: ``links``, ``images``, and ``internal`` labels are computed against.
+    #: The URL that was actually scraped, after any redirects, in normalized
+    #: form -- the base that ``links``, ``images``, and ``internal`` labels are
+    #: computed against.
     url: str
     #: The URL you requested, echoed verbatim -- before any redirects.
     requested_url: str
@@ -286,7 +307,5 @@ class ScrapeResponse:
     #: Warnings are stored with the result, so cache hits and async result
     #: fetches carry them too, filtered to the outputs you requested
     #: (``raw_html_truncated`` always surfaces, since a truncated body also
-    #: feeds ``markdown`` and ``cleaned_html``). The ``*_unavailable`` codes
-    #: only ever reach the request whose own scrape degraded: a cached result
-    #: missing a field you asked for is re-scraped rather than served.
+    #: feeds ``markdown`` and ``cleaned_html``).
     warnings: list[str] | None = None
