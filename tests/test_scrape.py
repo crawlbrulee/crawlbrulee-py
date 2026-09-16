@@ -29,7 +29,7 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
                 "response_meta": {
                     "usage": {
                         "credits": 1,
-                        "engine": "text",
+                        "engine": "http",
                         "proxy": "basic",
                         "screenshot_slices": 0,
                     },
@@ -56,7 +56,7 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
     assert page.metadata.keywords == ["a", "b"]
     assert page.response_meta is not None
     assert page.response_meta.usage.credits == 1
-    assert page.response_meta.usage.engine == "text"
+    assert page.response_meta.usage.engine == "http"
     assert page.response_meta.usage.proxy == "basic"
     assert page.response_meta.usage.screenshot_slices == 0
     assert page.warnings == ["screenshot_truncated"]

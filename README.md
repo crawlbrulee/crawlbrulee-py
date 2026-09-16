@@ -17,7 +17,7 @@ this readme covers the sdk itself — the clients, the types, and the python-sid
 for how the api behaves — endpoints, parameters, and error semantics — please see our
 [api docs](https://crawlbrulee.com/docs).
 
-> **status:** v0.15.0 (beta). the api surface is stabilizing — expect minor breaking
+> **status:** v0.16.0 (beta). the api surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 **get a free api key** → [dashboard.crawlbrulee.com](https://dashboard.crawlbrulee.com)
@@ -180,7 +180,7 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   tags, …), present when `extract.metadata` is on (the default).
 - `response_meta.usage` — per-request billing + routing usage:
   - `credits` — credits charged: engine base × proxy multiplier + screenshot slices.
-  - `engine` — the delivered billing base: `"text"`, `"browser"`, `"screenshot"`,
+  - `engine` — the delivered billing base: `"http"`, `"browser"`, `"screenshot"`,
     or `"cache"`. use `engine == "cache"` to identify a cache hit.
   - `proxy` — the proxy tier that actually ran: `"basic"` or `"advanced"` (the
     **resolved** tier — `"auto"` is decided server-side and is never echoed

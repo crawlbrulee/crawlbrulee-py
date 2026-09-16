@@ -144,7 +144,7 @@ def test_get_scrape_status_done_carries_usage_meta() -> None:
                 "response_meta": {
                     "usage": {
                         "credits": 5,
-                        "engine": "text",
+                        "engine": "http",
                         "proxy": "advanced",
                         "screenshot_slices": 0,
                     }
@@ -157,7 +157,7 @@ def test_get_scrape_status_done_carries_usage_meta() -> None:
     assert status.status == "done"
     assert status.response_meta is not None
     assert status.response_meta.usage.credits == 5
-    assert status.response_meta.usage.engine == "text"
+    assert status.response_meta.usage.engine == "http"
     assert status.response_meta.usage.proxy == "advanced"
     assert status.response_meta.usage.screenshot_slices == 0
 

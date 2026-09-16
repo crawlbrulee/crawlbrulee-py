@@ -20,7 +20,7 @@ def test_map_posts_body_and_parses_meta() -> None:
                 "response_meta": {
                     "usage": {
                         "credits": 1,
-                        "engine": "text",
+                        "engine": "http",
                         "proxy": "basic",
                     },
                     "pagination": {
@@ -63,7 +63,7 @@ def test_map_posts_body_and_parses_meta() -> None:
     assert len(result.links) == 2
     assert result.links[0].url == "https://example.com/a"
     assert result.response_meta.usage.credits == 1
-    assert result.response_meta.usage.engine == "text"
+    assert result.response_meta.usage.engine == "http"
     assert result.response_meta.usage.proxy == "basic"
     assert not hasattr(result.response_meta.usage, "screenshot_slices")
     assert result.response_meta.pagination.total == 2
@@ -80,7 +80,7 @@ def _map_payload(links: list[str], truncation: dict) -> dict:
     return {
         "links": [{"url": u} for u in links],
         "response_meta": {
-            "usage": {"credits": 1, "engine": "text", "proxy": "basic"},
+            "usage": {"credits": 1, "engine": "http", "proxy": "basic"},
             "pagination": {
                 "page": 1,
                 "limit": 5000,
@@ -150,7 +150,7 @@ def test_map_truncation_defaults_when_server_omits_new_fields() -> None:
             {
                 "links": [{"url": "https://example.com/a"}],
                 "response_meta": {
-                    "usage": {"credits": 1, "engine": "text", "proxy": "basic"},
+                    "usage": {"credits": 1, "engine": "http", "proxy": "basic"},
                     "pagination": {
                         "page": 1,
                         "limit": 5000,

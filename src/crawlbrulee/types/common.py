@@ -20,8 +20,8 @@ ResolvedProxyTier = Literal["basic", "advanced"]
 
 #: Engine base the operation was billed at. This reflects what the server
 #: delivered, not what the request asked for. ``cache`` identifies a cache hit.
-BillingEngine = Literal["text", "browser", "screenshot", "cache"]
-MapBillingEngine = Literal["text", "cache"]
+BillingEngine = Literal["http", "browser", "screenshot", "cache"]
+MapBillingEngine = Literal["http", "cache"]
 
 #: Screenshot capture mode: visible viewport or the full scrollable page.
 ScreenshotType = Literal["viewport", "full_page"]
@@ -109,7 +109,7 @@ class Usage:
     #: Credits charged for this request: engine base multiplied by the resolved
     #: proxy multiplier, plus ``screenshot_slices``.
     credits: int
-    #: Engine base billed for the delivered result: ``text`` (1), ``browser``
+    #: Engine base billed for the delivered result: ``http`` (1), ``browser``
     #: (3), ``screenshot`` (5), or ``cache`` (0).
     engine: BillingEngine
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
@@ -127,7 +127,7 @@ class MapUsage:
     #: Credits charged for this request: engine base multiplied by the
     #: resolved proxy multiplier.
     credits: int
-    #: ``text`` for fresh discovery or ``cache`` for a cached result.
+    #: ``http`` for fresh discovery or ``cache`` for a cached result.
     engine: MapBillingEngine
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
     proxy: ResolvedProxyTier
