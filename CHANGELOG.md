@@ -8,8 +8,8 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
 
 ### changed (breaking)
 
-- **the `http` engine replaces `text`.** `response_meta.usage.engine` now reports `"http"` for a
-  result the plain fetch engine delivered (no JavaScript run), where it used to report `"text"`.
+- **the `http` engine replaces `text`.** `response_meta.usage.engine` now reports `"http"` when the
+  plain fetch engine delivered the result (no JavaScript ran). it used to report `"text"`.
   `BillingEngine` is now `Literal["http", "browser", "screenshot", "cache"]` and
   `MapBillingEngine` is `Literal["http", "cache"]`. the credit base is unchanged (1 credit before
   the proxy multiplier). update any code that compares `engine` to `"text"`.
