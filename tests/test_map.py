@@ -6,6 +6,7 @@ import httpx
 
 from conftest import json_response, make_sync, request_json
 from crawlbrulee import MapTypes
+from crawlbrulee.types import DiscoveryCapReason
 
 
 def test_map_posts_body_and_parses_meta() -> None:
@@ -139,6 +140,32 @@ def test_map_reports_discovery_stopped_at_max_urls() -> None:
     assert truncation.discovery_capped is True
     assert truncation.sitemaps_skipped == 4
     assert truncation.discovery_cap_reason == "max_urls"
+
+
+def test_map_reports_discovery_stopped_on_unread_files() -> None:
+    # "unread_files" arrived after the other five reasons. It must parse like
+    # any other reason -- it is the one that is often temporary, so a caller
+    # may ask again later. The typed name below makes pyright fail if the value
+    # ever drops out of the DiscoveryCapReason literal.
+    expected: DiscoveryCapReason = "unread_files"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return json_response(
+            _map_payload(
+                ["https://example.com/a"],
+                {
+                    "discovery_capped": True,
+                    "sitemaps_skipped": 2,
+                    "discovery_cap_reason": "unread_files",
+                },
+            )
+        )
+
+    truncation = make_sync(handler).map(url="https://example.com").response_meta.truncation
+
+    assert truncation.discovery_capped is True
+    assert truncation.sitemaps_skipped == 2
+    assert truncation.discovery_cap_reason == expected
 
 
 def test_map_truncation_defaults_when_server_omits_new_fields() -> None:

@@ -4,6 +4,17 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 0.16.1 (2026-09-20)
+
+### added
+
+- **`DiscoveryCapReason` gains `unread_files`.** the api already returns `"unread_files"` as a
+  map's `response_meta.truncation.discovery_cap_reason`; the type was missing it. it means a
+  sitemap file the site publishes could not be read at all this time. it is often temporary,
+  so asking again later can return a fuller map. for `time`, `file_budget`, `depth` and
+  `file_size` a retry will not help, and only `max_urls` is yours to change. this is a
+  type-only fix: the value already parsed fine, so no code change is needed.
+
 ## 0.16.0 (2026-09-17)
 
 ### changed (breaking)

@@ -17,7 +17,7 @@ this readme covers the sdk itself — the clients, the types, and the python-sid
 for how the api behaves — endpoints, parameters, and error semantics — please see our
 [api docs](https://crawlbrulee.com/docs).
 
-> **status:** v0.16.0 (beta). the api surface is stabilizing — expect minor breaking
+> **status:** v0.16.1 (beta). the api surface is stabilizing — expect minor breaking
 > changes between 0.x releases.
 
 **get a free api key** → [dashboard.crawlbrulee.com](https://dashboard.crawlbrulee.com)
@@ -249,6 +249,10 @@ that hit the budget comes back with exactly `max_urls` links and `response_cappe
 t = result.response_meta.truncation
 if t.discovery_cap_reason == "max_urls":
     print("more pages exist — ask again with a higher max_urls")
+elif t.discovery_cap_reason == "unread_files":
+    # a sitemap file could not be read at all this time. often temporary —
+    # asking again later can return a fuller map.
+    print("some sitemap files could not be read — try again later")
 elif t.discovery_capped:
     # "time", "file_budget", "depth" or "file_size" — the site itself is big,
     # slow or deep, so a bigger max_urls will not help.
@@ -267,7 +271,7 @@ alongside the `pagination` and `truncation` blocks. `truncation` has:
 | `total_detected_before_storage_cap` | URLs detected during discovery before the storage cap. |
 | `discovery_capped` | discovery stopped before reading every sitemap file it found — the site has more pages than this map lists. |
 | `sitemaps_skipped` | how many sitemap files were skipped or only partly read (too large, fetch failed, or a discovery limit hit). |
-| `discovery_cap_reason` | which limit stopped discovery first, or `None`. one of `max_urls`, `time`, `file_budget`, `depth`, `file_size`. only `max_urls` is yours to change. |
+| `discovery_cap_reason` | which limit stopped discovery first, or `None`. one of `max_urls`, `time`, `file_budget`, `depth`, `file_size`, `unread_files`. only `max_urls` is yours to change; `unread_files` is often temporary, so asking again later can return more. |
 
 each link is just `{"url": ...}`. returned URLs are
 normalized, matching the `url` that `scrape` returns.
