@@ -4,6 +4,16 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 1.0.0 (2026-09-21)
+
+### changed
+
+- **first stable release.** no code or api changes since 0.16.1. from here on, breaking changes
+  only come in a new major version.
+- **license changed from AGPL-3.0-only to Apache-2.0.** no code or api changes.
+- **readme: the beta status note is gone.** the sdk is stable, and the pypi development status is
+  now `5 - Production/Stable`.
+
 ## 0.16.1 (2026-09-20)
 
 ### added
