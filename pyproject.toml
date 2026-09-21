@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "crawlbrulee"
-version = "1.0.0"
-description = "Official Python SDK for crawlbrulee - web-scraping API."
+version = "1.0.1"
+description = "official python sdk for crawlbrulee — EU-native web scraping for AI agents & developers. any url to clean markdown, screenshots, metadata and links."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -20,6 +20,12 @@ keywords = [
     "web-scraping",
     "screenshot",
     "sitemap",
+    "eu",
+    "gdpr",
+    "ai-agents",
+    "llm",
+    "rag",
+    "markdown",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

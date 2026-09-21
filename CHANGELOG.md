@@ -4,6 +4,13 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 1.0.1 (2026-09-21)
+
+### changed
+
+- **readme and package description rewritten.** they now lead with what crawlbrulee is: EU-native web
+  scraping for AI agents & developers. new pypi keywords. no code or api changes.
+
 ## 1.0.0 (2026-09-21)
 
 ### changed
