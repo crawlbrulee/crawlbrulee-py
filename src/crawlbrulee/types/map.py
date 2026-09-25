@@ -125,7 +125,7 @@ class MapTruncation:
 class MapResponseMeta:
     """Usage + pagination + truncation metadata for a map result set."""
 
-    #: Billing + routing usage for this request (credits, resolved proxy, cache).
+    #: Billing + routing usage for this request (credit cost, resolved proxy, cache).
     usage: MapUsage
     pagination: MapPagination
     truncation: MapTruncation

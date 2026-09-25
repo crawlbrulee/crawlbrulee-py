@@ -4,6 +4,51 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 1.1.0 (2026-09-25)
+
+### added
+
+- **`page_status_code` on every scrape result.** `ScrapeResponse.page_status_code` is the http
+  status the target site answered with for the final page, after redirects. it is on `scrape`,
+  `get_scrape_result` and `wait_for_scrape`, and on the `scrape.complete` webhook as
+  `ScrapeCompleteWebhookData.page_status_code` (only when `status` is `"success"`).
+- **a 404 page is a result, not an error.** with the api that sends `page_status_code`, a page
+  the site really served comes back as a normal result whatever its status: a `404`, `410`,
+  `401`, `403` (when it is not a bot block), `451` or `503` page arrives with its content. the
+  sdk does not raise for it; check `page_status_code` when it matters to you. billing follows
+  that status: `2xx` and `4xx` pages are billed, except `403`, `407`, `408`, `429` and `451`;
+  `5xx` pages are never billed.
+- **`TargetUnreachableError`** — a `502` with `name: "target_unreachable"` raises its own class.
+  it means we could not reach the target site at all, so there is no page. it is never billed
+  and retrying may help. the sdk does not retry it for you. both `scrape` and `map` can raise
+  it. `ApiErrorName` gains `"target_unreachable"`.
+- **usage shows the parts of the price.** `Usage` gains `total_credit_cost`,
+  `engine_credit_cost`, `proxy_multiplier` and `screenshot_slicing_credit_cost`. they always add
+  up: `total_credit_cost == engine_credit_cost * proxy_multiplier + screenshot_slicing_credit_cost`.
+  `MapUsage` gains the same fields minus the slicing cost. a page that is not billed has every
+  cost part at `0`.
+
+### deprecated
+
+- **`Usage.credits` and `MapUsage.credits`** — use `total_credit_cost` (same value).
+- **`Usage.screenshot_slices`** — use `screenshot_slicing_credit_cost` (same value; it was
+  always a `0`/`1` charge, not a count of slices).
+- both still work and still carry their values, even once the api stops sending them: the sdk
+  fills them in from the new fields. they will be removed from the sdk in a future version.
+
+### changed
+
+- **`NotFoundError` only means one of the api's own resources**, like an unknown async
+  `job_id`. it never means the target page was not found.
+
+### compatibility
+
+- an older api that does not send the new fields still parses. `page_status_code` is then
+  `None`. `total_credit_cost` and `screenshot_slicing_credit_cost` are filled in from `credits`
+  and `screenshot_slices`, and `engine_credit_cost` and `proxy_multiplier` are `None`.
+- `page_status_code` is added as the last field of `ScrapeResponse` and
+  `ScrapeCompleteWebhookData`, so code that builds them by position keeps working.
+
 ## 1.0.1 (2026-09-21)
 
 ### changed

@@ -107,7 +107,13 @@ class AsyncCrawlbrulee:
         location: ScrapeLocation | dict[str, Any] | None = None,
         timeout: float | None = None,
     ) -> ScrapeResponse:
-        """Scrape a URL and return the extracted content. Awaits until done."""
+        """Scrape a URL and return the extracted content. Awaits until done.
+
+        A page the site served is returned whatever its status -- a 404 page
+        is a normal result with ``page_status_code == 404``, not an exception.
+        Raises :class:`~crawlbrulee.TargetUnreachableError` when the site could
+        not be reached at all.
+        """
         body = scrape_body(url, extract, cache, require_js, cleanup, proxy, location)
         data = await self._transport.request("POST", "/api/scrape", body=body, timeout=timeout)
         return from_dict(ScrapeResponse, data)
@@ -131,9 +137,7 @@ class AsyncCrawlbrulee:
         job finishes (async-only; verify deliveries with
         :func:`crawlbrulee.verify_webhook_signature`).
         """
-        body = async_scrape_body(
-            url, extract, cache, require_js, cleanup, proxy, location, webhook
-        )
+        body = async_scrape_body(url, extract, cache, require_js, cleanup, proxy, location, webhook)
         data = await self._transport.request(
             "POST", "/api/scrape/async", body=body, timeout=timeout
         )

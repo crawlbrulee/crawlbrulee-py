@@ -17,7 +17,7 @@ from .common import Usage
 class ScrapeCompleteWebhookMeta:
     """The ``data.response_meta`` block of a ``scrape.complete`` webhook delivery."""
 
-    #: Billing + routing usage for the finished job (credits, resolved proxy, cache).
+    #: Billing + routing usage for the finished job (credit cost, resolved proxy, cache).
     usage: Usage
 
 
@@ -38,8 +38,13 @@ class ScrapeCompleteWebhookData:
     #: Arbitrary metadata echoed back from the original request's
     #: ``webhook.metadata``, when one was supplied.
     metadata: dict[str, Any] | None = None
-    #: Billing + routing usage for the finished job.
+    #: Billing + routing usage for the finished job. Present only when
+    #: ``status == "success"``.
     response_meta: ScrapeCompleteWebhookMeta | None = None
+    #: The HTTP status the target site answered with for the final page, after
+    #: redirects. Present only when ``status == "success"`` -- a ``404`` page is
+    #: a successful job. ``None`` on an older api version that does not send it.
+    page_status_code: int | None = None
 
 
 @dataclass

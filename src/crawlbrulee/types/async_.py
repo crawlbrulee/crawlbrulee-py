@@ -23,7 +23,7 @@ class AsyncScrapeResponse:
 class AsyncStatusMeta:
     """Request-level metadata on an async status response (``response_meta``)."""
 
-    #: Billing + routing usage for the finished job (credits, resolved proxy, cache).
+    #: Billing + routing usage for the finished job (credit cost, resolved proxy, cache).
     usage: Usage
 
 

@@ -113,6 +113,11 @@ class Crawlbrulee:
 
         The request blocks until the scrape finishes. For long-running jobs
         prefer :meth:`scrape_async` so the connection isn't held open.
+
+        A page the site served is returned whatever its status -- a 404 page
+        is a normal result with ``page_status_code == 404``, not an exception.
+        Raises :class:`~crawlbrulee.TargetUnreachableError` when the site could
+        not be reached at all.
         """
         body = scrape_body(url, extract, cache, require_js, cleanup, proxy, location)
         data = self._transport.request("POST", "/api/scrape", body=body, timeout=timeout)
@@ -137,9 +142,7 @@ class Crawlbrulee:
         job finishes (async-only; verify deliveries with
         :func:`crawlbrulee.verify_webhook_signature`).
         """
-        body = async_scrape_body(
-            url, extract, cache, require_js, cleanup, proxy, location, webhook
-        )
+        body = async_scrape_body(url, extract, cache, require_js, cleanup, proxy, location, webhook)
         data = self._transport.request("POST", "/api/scrape/async", body=body, timeout=timeout)
         return from_dict(AsyncScrapeResponse, data)
 

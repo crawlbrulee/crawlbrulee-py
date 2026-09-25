@@ -6,7 +6,7 @@
 
 **EU-native web scraping for AI agents & developers.**
 
-the official python sdk for [crawlbrulee](https://crawlbrulee.com), published to PyPI as [`crawlbrulee`](https://pypi.org/project/crawlbrulee/). one call turns any url into clean markdown, screenshots, metadata and links, with per-request usage on every response. typed sync and async clients with auth, retries, and error mapping built in.
+the official python sdk for [crawlbrulee](https://crawlbrulee.com), published to PyPI as [`crawlbrulee`](https://pypi.org/project/crawlbrulee/). one call turns any url into clean markdown, screenshots, metadata and links, with per-request usage on every response. typed sync and async clients with auth and error mapping built in.
 
 - **everything runs in the EU.** the fetch, the render, the cache and your result never leave EU servers. the proxy exit is the one hop you choose: pick an EU exit and nothing leaves at all. gdpr-aligned, with a data processing agreement.
 - **output made for models.** markdown with the page chrome stripped and the links kept, ready for the prompt. full-page screenshots can come back as tiles sized for an image model.
@@ -49,6 +49,7 @@ page = client.scrape(
     extract=ScrapeExtract(markdown=True, links=True),
 )
 
+print(page.page_status_code)  # what the site answered, e.g. 200 or 404
 print(page.markdown)
 print(len(page.links or []), "links found")
 print(page.metadata.title if page.metadata else None)
@@ -56,7 +57,7 @@ print(page.metadata.title if page.metadata else None)
 # Per-request billing + routing usage rides along on every success:
 if page.response_meta:
     usage = page.response_meta.usage
-    print(usage.credits, usage.engine, usage.proxy, usage.screenshot_slices)
+    print(usage.total_credit_cost, usage.engine, usage.proxy)
 ```
 
 ### async
@@ -180,17 +181,38 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 - `url` — the url that was actually scraped, after any redirects, in normalized
   form — the base that `links`, `images`, and `internal` labels are computed against.
 - `requested_url` — the url you requested, echoed verbatim — before any redirects.
+- `page_status_code` — the http status the target site answered with for the final page,
+  after redirects (in the browser: the main document, not images or scripts). see
+  [a 404 page is a result](#a-404-page-is-a-result) below. `None` on an older api version
+  that does not send it.
 - `metadata` — extracted page metadata (`title`, `description`, OG/Twitter
   tags, …), present when `extract.metadata` is on (the default).
-- `response_meta.usage` — per-request billing + routing usage:
-  - `credits` — credits charged: engine base × proxy multiplier + screenshot slices.
+- `response_meta.usage` — per-request billing + routing usage. the parts always add up:
+  `total_credit_cost == engine_credit_cost * proxy_multiplier + screenshot_slicing_credit_cost`.
+  - `total_credit_cost` — credits charged for this request. `0` when nothing is billed: a
+    page whose status is not billed, or a cache hit (a cache hit that cuts new screenshot
+    slices still costs the `1` slicing add-on).
+  - `engine_credit_cost` — the engine base, before the proxy multiplier: `1` for `http`,
+    `3` for `browser`, `5` for `screenshot`, `0` for `cache`. also `0` when the page is
+    not billed.
+  - `proxy_multiplier` — `1` for `basic`, `5` for `advanced`. reported even when the
+    engine cost is `0`.
+  - `screenshot_slicing_credit_cost` — `1` when the screenshot was cut into slices on this
+    request (a flat +1, outside the proxy multiplier, however many slices), else `0`.
   - `engine` — the delivered billing base: `"http"`, `"browser"`, `"screenshot"`,
     or `"cache"`. use `engine == "cache"` to identify a cache hit.
   - `proxy` — the proxy tier that actually ran: `"basic"` or `"advanced"` (the
     **resolved** tier — `"auto"` is decided server-side and is never echoed
     here).
-  - `screenshot_slices` — `1` when this request produced screenshot slices and
-    billed the flat +1 add-on; otherwise `0`.
+  - `credits` — **deprecated**, use `total_credit_cost` (same value). it will be removed
+    in a future version.
+  - `screenshot_slices` — **deprecated**, use `screenshot_slicing_credit_cost` (same
+    value; despite the name it is a `0`/`1` charge, not a count). it will be removed in a
+    future version.
+
+  an older api version sends only `credits`, `engine`, `proxy` and `screenshot_slices`.
+  then `total_credit_cost` and `screenshot_slicing_credit_cost` are filled in from the
+  old names, and `engine_credit_cost` and `proxy_multiplier` are `None`.
 - `warnings` — a list of stable string codes flagging something worth noting on an
   otherwise-successful scrape, in two families. an output hit a cap and was truncated —
   loudly, never silently — so the payload is partial but still usable:
@@ -221,8 +243,29 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 ```python
 page = client.scrape(url="https://example.com")
 if page.response_meta and page.response_meta.usage.engine == "cache":
-    print("served from cache —", page.response_meta.usage.credits, "credits")
+    print("served from cache —", page.response_meta.usage.total_credit_cost, "credits")
 ```
+
+#### a 404 page is a result
+
+if the site really served a page, you get it back — whatever its status. a `404`, `410`,
+`401`, `403` (when it is not a bot block), `451` or `503` page comes back as a normal
+`ScrapeResponse` with its content, and `page_status_code` tells you what the site said.
+the sdk does not raise for it, so check the status yourself when it matters to you:
+
+```python
+page = client.scrape(url="https://example.com/old-post")
+if page.page_status_code and page.page_status_code >= 400:
+    print("the site answered", page.page_status_code)
+```
+
+billing follows `page_status_code`: `2xx` and `4xx` pages are billed, except `403`, `407`,
+`408`, `429` and `451`. `5xx` pages are never billed. a page that is not billed has every
+cost part at `0`. errors (below) are never billed.
+
+the sdk raises when we could not return the page — for example
+`TargetUnreachableError` when the site could not be reached, or `AntibotBlockedError`
+when a bot check blocked us. see [errors](#errors).
 
 ### mapping
 
@@ -237,7 +280,7 @@ result = client.map(
 )
 print(len(result.links), "of", result.response_meta.pagination.total_pages, "pages")
 usage = result.response_meta.usage
-print(usage.credits, "credits", "(cache hit)" if usage.engine == "cache" else "")
+print(usage.total_credit_cost, "credits", "(cache hit)" if usage.engine == "cache" else "")
 ```
 
 every argument is optional. leave one out and the server's default applies — the SDK
@@ -264,8 +307,10 @@ elif t.discovery_capped:
           f"({t.sitemaps_skipped} sitemap files skipped or partly read)")
 ```
 
-`result.response_meta` carries map usage (`credits` / billed `engine` / resolved `proxy`)
-alongside the `pagination` and `truncation` blocks. `truncation` has:
+`result.response_meta` carries map usage (`total_credit_cost`, `engine_credit_cost`,
+`proxy_multiplier`, billed `engine`, resolved `proxy`, and the deprecated `credits`) alongside
+the `pagination` and `truncation` blocks. a map has no `page_status_code` and no slicing cost.
+an empty map is free when the site answered only with statuses we don't bill (a `5xx`, for example), or not at all. `truncation` has:
 
 | field | meaning |
 | --- | --- |
@@ -291,7 +336,7 @@ once the job is `done`:
 ```python
 status = client.get_scrape_status(job_id)
 if status.status == "done" and status.response_meta:
-    print("job cost", status.response_meta.usage.credits, "credits")
+    print("job cost", status.response_meta.usage.total_credit_cost, "credits")
 ```
 
 ### account
@@ -347,14 +392,16 @@ job = client.scrape_async(
   deliveries without keeping your own `job_id` mapping.
 
 the delivered `scrape.complete` payload carries the echoed object on
-`data.metadata`, plus `data.response_meta.usage` (`credits` / billed `engine` /
-resolved `proxy` / `screenshot_slices`) for the finished job:
+`data.metadata`. when `data.status` is `"success"` it also carries
+`data.page_status_code` (what the site answered — a `404` page is a successful job) and
+`data.response_meta.usage` (the same usage fields as a scrape) for the finished job:
 
 ```python
 webhook = ScrapeCompleteWebhook(...)  # parsed from the delivery (see below)
 print(webhook.data.metadata)                    # {"order_id": "abc-123"}
+print(webhook.data.page_status_code)            # e.g. 200 or 404
 if webhook.data.response_meta:
-    print("job cost", webhook.data.response_meta.usage.credits, "credits")
+    print("job cost", webhook.data.response_meta.usage.total_credit_cost, "credits")
 ```
 
 deliveries are signed with your **organization** webhook secret (configured in the
@@ -419,14 +466,15 @@ every failure raised by the sdk subclasses `CrawlbruleeError`:
 
 | class | when |
 | --- | --- |
-| `AuthenticationError` | 401 / 403 (missing, invalid, or unauthorized key). |
+| `AuthenticationError` | 401 / 403 (missing, invalid, or unauthorized key). a 401 or 403 *page* from the target site is not an error — it comes back with `page_status_code`. |
 | `AntibotBlockedError` | 403 `antibot_blocked` — the target site's bot protection blocked us. not a key problem. |
 | `TooManyRedirectsError` | 422 `too_many_redirects` — the target site redirected in a loop. not a bad request; retrying rarely helps. |
 | `PageTooLargeError` | 422 `page_too_large` — the page's html was too large to process. terminal; do not retry it. |
 | `RateLimitError` | 429. exposes `retry_after_ms` and `limited_by` when provided. |
 | `UsageAllocationError` | plan limit hit. exposes `reason` and `usage`. |
 | `ValidationError` | bad request (`invalid_url`, `url_too_long`, `blocked_url`, …). |
-| `NotFoundError` | 404 (e.g. unknown async `job_id`). |
+| `NotFoundError` | 404 for one of the api's own resources (e.g. unknown async `job_id`). never a target page — a 404 page is a result. |
+| `TargetUnreachableError` | 502 `target_unreachable` — we could not reach the target site at all. not billed; retrying may help. |
 | `ServiceUnavailableError` | 503 (`service_unavailable`). transient infrastructure failure on our side — retry it. |
 | `TransportError` | network failure, timeout, or non-json response. |
 | `CrawlbruleeError` | base class — any other api error. always has `status`, `error_name`, `message`. |
@@ -437,6 +485,7 @@ from crawlbrulee import (
     Crawlbrulee,
     RateLimitError,
     ServiceUnavailableError,
+    TargetUnreachableError,
     UsageAllocationError,
 )
 
@@ -449,6 +498,10 @@ except RateLimitError as err:
 except ServiceUnavailableError:
     time.sleep(1)
     # retry with backoff — nothing about the request needs changing
+except TargetUnreachableError:
+    # no page came back and nothing was billed. the site may be down for a moment —
+    # try again later
+    ...
 except UsageAllocationError as err:
     print("Plan limit hit:", err.reason, err.usage)
 ```
@@ -468,6 +521,15 @@ both `scrape` and `map` can return it.
 means the page's html was too large to process. it is not a `ValidationError`, because nothing
 about your request was wrong. it is terminal: the same url will fail the same way, so do not
 retry it — scrape a smaller page instead. `scrape` returns it; `map` does not.
+
+**`TargetUnreachableError` means there was no page.** a `502` carrying `target_unreachable`
+means we could not reach the target site at all — for example it timed out or its tls
+certificate was bad. the message is always "Could not reach the target site." and there are
+no `details`. it is never billed, and retrying may help, since the site may only be down for
+a moment. the sdk does not retry it for you (it never retries on its own). both `scrape` and
+`map` can raise it; an async job that hits it ends `failed`. do not count on it for a domain
+that does not exist: that can also come back as a `500`. it is different from a page error —
+a page the site served, even a `5xx` page, is a result with `page_status_code`.
 
 **`ServiceUnavailableError` is not an auth problem.** a `503` means a piece of our
 infrastructure failed while handling your request — the request never reached a verdict

@@ -56,6 +56,10 @@ class AuthenticationError(CrawlbruleeError):
     Not every 403 is a key problem: a 403 carrying ``antibot_blocked`` is the
     *target site* blocking us and raises ``AntibotBlockedError`` instead. Only
     an unrecognized 403 name falls back to this class.
+
+    A ``401`` or ``403`` *page* from the target site is not an error at all: it
+    comes back as a normal result, with the site's status on
+    ``page_status_code``.
     """
 
 
@@ -91,7 +95,13 @@ class PageTooLargeError(CrawlbruleeError):
 
 
 class NotFoundError(CrawlbruleeError):
-    """Raised for 404 responses (e.g. unknown async job ID)."""
+    """Raised when the api answers 404 for one of *its own* resources -- for
+    example an unknown or expired async ``job_id``.
+
+    It never means the target page was not found. A scrape of a page that
+    answers 404 returns normally, with ``page_status_code == 404`` on the
+    result.
+    """
 
 
 class ValidationError(CrawlbruleeError):
@@ -163,6 +173,25 @@ class ServiceUnavailableError(CrawlbruleeError):
     """
 
 
+class TargetUnreachableError(CrawlbruleeError):
+    """Raised when we could not reach the target site at all (HTTP 502,
+    ``target_unreachable``) -- for example it timed out or its TLS certificate
+    was bad. There is no page to return, so nothing is billed.
+
+    The message is always "Could not reach the target site." and there are no
+    ``details``. Retrying may help, since the site may only be down for a
+    moment. The sdk does not retry it for you (it never retries on its own).
+    Both ``scrape`` and ``map`` can raise it; an async job that hits it ends
+    ``failed``.
+
+    It is not our outage (that is a ``500`` or a ``503``
+    ``ServiceUnavailableError``), and it is not a page error: a page the site
+    served, even a ``5xx`` page, comes back as a result with
+    ``page_status_code``. Do not count on this error for a domain that does not
+    exist: that can also come back as a ``500``.
+    """
+
+
 class TransportError(CrawlbruleeError):
     """Raised when a request cannot be sent or no structured response is parsed.
 
@@ -225,6 +254,11 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
     if name == "page_too_large":
         return PageTooLargeError(message, status=status, error_name="page_too_large", response=body)
 
+    if name == "target_unreachable":
+        return TargetUnreachableError(
+            message, status=status, error_name="target_unreachable", response=body
+        )
+
     if name in ("invalid_credentials", "access_denied"):
         return AuthenticationError(message, status=status, error_name=name, response=body)
 
@@ -249,7 +283,8 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
         return ValidationError(message, status=status, error_name=name, response=body)
 
     # Name was not specific enough -- fall back to status-based heuristics, but
-    # never override what the name said.
+    # never override what the name said. A 502 is deliberately not mapped here:
+    # only the ``target_unreachable`` name says the target site was the problem.
     if status == 429:
         return RateLimitError(message, status=status, response=body)
     if status in (401, 403):

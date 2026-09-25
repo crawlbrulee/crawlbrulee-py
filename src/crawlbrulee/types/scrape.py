@@ -223,7 +223,7 @@ class ScrapeMetadata:
 class ScrapeResponseMeta:
     """Request-level metadata on a scrape response (``response_meta``)."""
 
-    #: Billing + routing usage for this request (credits, resolved proxy, cache).
+    #: Billing + routing usage for this request (credit cost, resolved proxy, cache).
     usage: Usage
 
 
@@ -266,7 +266,14 @@ ScrapeWarningCode = Literal[
 @dataclass
 class ScrapeResponse:
     """Successful response from ``POST /api/scrape`` and
-    ``GET /api/scrape/result/:job_id``."""
+    ``GET /api/scrape/result/:job_id``.
+
+    A page the site really served is a result, whatever its own status: a
+    ``404``, ``410``, ``401`` or ``503`` page comes back here with its content,
+    and :attr:`page_status_code` tells you what the site answered. The sdk does
+    not raise for it. Check ``page_status_code`` yourself when a page that is
+    not ``2xx`` means something to you.
+    """
 
     #: The URL that was actually scraped, after any redirects, in normalized
     #: form -- the base that ``links``, ``images``, and ``internal`` labels are
@@ -309,3 +316,11 @@ class ScrapeResponse:
     #: (``raw_html_truncated`` always surfaces, since a truncated body also
     #: feeds ``markdown`` and ``cleaned_html``).
     warnings: list[str] | None = None
+    #: The HTTP status the target site answered with for the final page, after
+    #: redirects (in the browser: the main document, not images or scripts).
+    #: A ``404`` page is data, not an error. Billing follows this status:
+    #: ``2xx`` and ``4xx`` pages are billed, except ``403``, ``407``, ``408``,
+    #: ``429`` and ``451``; ``5xx`` pages are never billed.
+    #:
+    #: ``None`` on an older api version that does not send it.
+    page_status_code: int | None = None

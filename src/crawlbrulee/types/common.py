@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal, TypedDict
+from dataclasses import dataclass, field
+from typing import Literal, TypedDict, cast
 
 #: Proxy tier used to route the fetch.
 #:
@@ -97,6 +97,19 @@ class ScreenshotRequest:
     actions_after: list[ScreenshotSliceAction] | None = None
 
 
+def _require(obj: object, *names: str) -> None:
+    missing = [n for n in names if getattr(obj, n) is None]
+    if missing:
+        raise TypeError(f"{type(obj).__name__} is missing required field(s): {', '.join(missing)}")
+
+
+def _pair(obj: object, name: str, new: int | None, old: int | None) -> tuple[int, int]:
+    value = new if new is not None else old
+    if value is None:
+        raise TypeError(f"{type(obj).__name__} is missing required field: {name}")
+    return value, value
+
+
 @dataclass
 class Usage:
     """Per-request billing + routing usage, reported on ``response_meta.usage``.
@@ -104,33 +117,113 @@ class Usage:
     Returned on every scrape success, on a terminal async status, and in the
     ``scrape.complete`` webhook payload, so callers can attribute spend and see
     which proxy tier actually ran -- without a separate ``/api/usage`` call.
+
+    The cost parts always add up::
+
+        total_credit_cost == engine_credit_cost * proxy_multiplier + screenshot_slicing_credit_cost
+
+    A page we don't bill (for example a ``5xx`` page, see
+    :attr:`ScrapeResponse.page_status_code <crawlbrulee.ScrapeResponse.page_status_code>`)
+    has every cost part at ``0``; ``engine``, ``proxy`` and ``proxy_multiplier``
+    are still reported.
+
+    Older api versions only send ``credits``, ``engine``, ``proxy`` and
+    ``screenshot_slices``. Then ``total_credit_cost`` and
+    ``screenshot_slicing_credit_cost`` are filled in from ``credits`` and
+    ``screenshot_slices`` (they always hold the same value), and
+    ``engine_credit_cost`` and ``proxy_multiplier`` are ``None``. Once the
+    api stops sending the deprecated names, they are filled in from the new
+    ones the same way.
     """
 
-    #: Credits charged for this request: engine base multiplied by the resolved
-    #: proxy multiplier, plus ``screenshot_slices``.
-    credits: int
-    #: Engine base billed for the delivered result: ``http`` (1), ``browser``
-    #: (3), ``screenshot`` (5), or ``cache`` (0).
-    engine: BillingEngine
+    #: **Deprecated:** use :attr:`total_credit_cost`, which always has the same
+    #: value. Kept so existing code keeps working; it will be removed in a
+    #: future version.
+    credits: int = field(default=cast(int, None))
+    #: Engine the request was billed at, for the delivered result: ``http``,
+    #: ``browser``, ``screenshot``, or ``cache`` (served from cache).
+    engine: BillingEngine = field(default=cast(BillingEngine, None))
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
-    #: ``advanced`` multiplies the engine base by 5.
-    proxy: ResolvedProxyTier
-    #: Screenshot-slice add-on billed for this request: ``1`` when slices were
-    #: produced during this request, otherwise ``0``.
-    screenshot_slices: int
+    proxy: ResolvedProxyTier = field(default=cast(ResolvedProxyTier, None))
+    #: **Deprecated:** use :attr:`screenshot_slicing_credit_cost`, which always
+    #: has the same value. Despite its name this is a ``0``/``1`` charge, not a
+    #: count of slices. It will be removed in a future version.
+    screenshot_slices: int = field(default=cast(int, None))
+    #: Credits charged for this request. ``0`` when nothing is billed: a page
+    #: whose status is not billed, or a cache hit (a cache hit that cuts new
+    #: screenshot slices still costs the ``1`` slicing add-on).
+    total_credit_cost: int = field(default=cast(int, None))
+    #: The engine base charged, before the proxy multiplier: ``1`` for
+    #: ``http``, ``3`` for ``browser``, ``5`` for ``screenshot``, ``0`` for
+    #: ``cache``. Also ``0`` when the page is not billed. ``None`` on an older
+    #: api version that does not send it.
+    engine_credit_cost: int | None = None
+    #: Multiplier of the proxy tier the request ran on: ``1`` for ``basic``,
+    #: ``5`` for ``advanced``. Reported even when the engine cost is ``0``.
+    #: ``None`` on an older api version that does not send it.
+    proxy_multiplier: int | None = None
+    #: The screenshot slicing add-on: ``1`` when the screenshot was cut into
+    #: slices on this request (a flat +1, outside the proxy multiplier, however
+    #: many slices), else ``0``. A cache hit that reuses slices that already
+    #: exist costs ``0``.
+    screenshot_slicing_credit_cost: int = field(default=cast(int, None))
+
+    def __post_init__(self) -> None:
+        _require(self, "engine", "proxy")
+        # Older api versions send only the deprecated names; a later one may
+        # send only the new names. Each pair always holds the same value.
+        self.total_credit_cost, self.credits = _pair(
+            self, "total_credit_cost", self.total_credit_cost, self.credits
+        )
+        self.screenshot_slicing_credit_cost, self.screenshot_slices = _pair(
+            self,
+            "screenshot_slicing_credit_cost",
+            self.screenshot_slicing_credit_cost,
+            self.screenshot_slices,
+        )
 
 
 @dataclass
 class MapUsage:
-    """Per-request billing + routing usage for a map response."""
+    """Per-request billing + routing usage for a map response.
 
-    #: Credits charged for this request: engine base multiplied by the
-    #: resolved proxy multiplier.
-    credits: int
+    The cost parts always add up:
+    ``total_credit_cost == engine_credit_cost * proxy_multiplier``.
+
+    Older api versions only send ``credits``, ``engine`` and ``proxy``. Then
+    ``total_credit_cost`` is filled in from ``credits`` (they always hold the
+    same value), and ``engine_credit_cost`` and ``proxy_multiplier`` are ``None``.
+    """
+
+    #: **Deprecated:** use :attr:`total_credit_cost`, which always has the same
+    #: value. Kept so existing code keeps working; it will be removed in a
+    #: future version.
+    credits: int = field(default=cast(int, None))
     #: ``http`` for fresh discovery or ``cache`` for a cached result.
-    engine: MapBillingEngine
+    engine: MapBillingEngine = field(default=cast(MapBillingEngine, None))
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
-    proxy: ResolvedProxyTier
+    proxy: ResolvedProxyTier = field(default=cast(ResolvedProxyTier, None))
+    #: Credits charged for this map request. ``0`` for a cache hit, and for an
+    #: empty map when the site answered only with statuses we don't bill
+    #: (a ``5xx``, for example) or not at all.
+    total_credit_cost: int = field(default=cast(int, None))
+    #: The engine base charged, before the proxy multiplier: ``1`` for
+    #: ``http``, ``0`` for ``cache``. Also ``0`` for an empty map that is not
+    #: billed. ``None`` on an older api version that
+    #: does not send it.
+    engine_credit_cost: int | None = None
+    #: Multiplier of the proxy tier the request ran on: ``1`` for ``basic``,
+    #: ``5`` for ``advanced``. ``None`` on an older api version that does not
+    #: send it.
+    proxy_multiplier: int | None = None
+
+    def __post_init__(self) -> None:
+        _require(self, "engine", "proxy")
+        # Older api versions send only the deprecated name; a later one may
+        # send only the new name. Both always hold the same value.
+        self.total_credit_cost, self.credits = _pair(
+            self, "total_credit_cost", self.total_credit_cost, self.credits
+        )
 
 
 #: Machine-readable error names returned by the crawlbrulee API. Stable
@@ -162,6 +255,7 @@ ApiErrorName = Literal[
     "antibot_blocked",
     "too_many_redirects",
     "page_too_large",
+    "target_unreachable",
 ]
 
 #: Reason a usage allocation was denied (when ``name == usage_allocation_error``).
