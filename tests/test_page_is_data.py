@@ -2,8 +2,9 @@
 and the ``target_unreachable`` error.
 
 Every response test runs twice: once with the current api shape and once with
-the older shape that has no ``page_status_code`` and only the old usage fields.
-Both must parse, on the sync and the async client.
+the older shape that has no ``page_status_code`` and whose usage still carries
+the removed ``credits`` / ``screenshot_slices`` names. Both must parse, on the
+sync and the async client.
 """
 
 from __future__ import annotations
@@ -35,11 +36,19 @@ NEW_USAGE = {
     "screenshot_slicing_credit_cost": 0,
     "engine": "browser",
     "proxy": "advanced",
-    "credits": 15,
-    "screenshot_slices": 0,
 }
 
-OLD_USAGE = {"credits": 16, "engine": "screenshot", "proxy": "basic", "screenshot_slices": 1}
+# The api still sends the removed names next to the new ones; they are ignored.
+OLD_USAGE = {
+    "total_credit_cost": 16,
+    "engine_credit_cost": 5,
+    "proxy_multiplier": 1,
+    "screenshot_slicing_credit_cost": 1,
+    "engine": "screenshot",
+    "proxy": "basic",
+    "credits": 16,
+    "screenshot_slices": 1,
+}
 
 NEW_MAP_USAGE = {
     "total_credit_cost": 5,
@@ -47,10 +56,16 @@ NEW_MAP_USAGE = {
     "proxy_multiplier": 5,
     "engine": "http",
     "proxy": "advanced",
-    "credits": 5,
 }
 
-OLD_MAP_USAGE = {"credits": 1, "engine": "http", "proxy": "basic"}
+OLD_MAP_USAGE = {
+    "total_credit_cost": 1,
+    "engine_credit_cost": 1,
+    "proxy_multiplier": 1,
+    "engine": "http",
+    "proxy": "basic",
+    "credits": 1,
+}
 
 
 def _page_404() -> dict:
@@ -171,7 +186,7 @@ async def test_old_api_scrape_without_page_status_code_still_parses_async() -> N
 
 
 # ----------------------------------------------------------------------
-# Usage: the new cost fields, and the old ones as a fallback
+# Usage: the new cost fields; the removed names are ignored
 # ----------------------------------------------------------------------
 
 
@@ -182,20 +197,18 @@ def _assert_new_usage(usage: Usage) -> None:
     assert usage.screenshot_slicing_credit_cost == 0
     assert usage.engine == "browser"
     assert usage.proxy == "advanced"
-    # The deprecated names still carry the same values.
-    assert usage.credits == 15
-    assert usage.screenshot_slices == 0
+    assert not hasattr(usage, "credits")
+    assert not hasattr(usage, "screenshot_slices")
 
 
 def _assert_old_usage(usage: Usage) -> None:
-    # Old api: the two exact matches are filled from the old names ...
+    # The removed names are ignored; the new fields carry the values.
     assert usage.total_credit_cost == 16
     assert usage.screenshot_slicing_credit_cost == 1
-    # ... and the two parts the old api never sent stay unknown.
-    assert usage.engine_credit_cost is None
-    assert usage.proxy_multiplier is None
-    assert usage.credits == 16
-    assert usage.screenshot_slices == 1
+    assert usage.engine_credit_cost == 5
+    assert usage.proxy_multiplier == 1
+    assert not hasattr(usage, "credits")
+    assert not hasattr(usage, "screenshot_slices")
 
 
 def test_sync_usage_reads_the_new_cost_fields() -> None:
@@ -208,7 +221,7 @@ def test_sync_usage_reads_the_new_cost_fields() -> None:
     _assert_new_usage(status.response_meta.usage)
 
 
-def test_sync_usage_falls_back_to_the_old_fields() -> None:
+def test_sync_usage_ignores_the_removed_fields() -> None:
     client = make_sync(_router(_old_page(), OLD_USAGE, OLD_MAP_USAGE))
     page = client.scrape(url="https://example.com")
     assert page.response_meta is not None
@@ -218,7 +231,7 @@ def test_sync_usage_falls_back_to_the_old_fields() -> None:
     _assert_old_usage(status.response_meta.usage)
 
 
-async def test_async_usage_reads_new_and_falls_back_to_old() -> None:
+async def test_async_usage_reads_new_and_ignores_removed() -> None:
     async with make_async(_router(_page_404(), NEW_USAGE, NEW_MAP_USAGE)) as client:
         new_page = await client.scrape(url="https://example.com/missing")
         new_status = await client.get_scrape_status("j1")
@@ -245,8 +258,6 @@ def test_unbilled_page_has_every_cost_part_at_zero() -> None:
             "screenshot_slicing_credit_cost": 0,
             "engine": "http",
             "proxy": "basic",
-            "credits": 0,
-            "screenshot_slices": 0,
         },
     )
     assert usage.total_credit_cost == 0
@@ -255,28 +266,33 @@ def test_unbilled_page_has_every_cost_part_at_zero() -> None:
     assert usage.proxy_multiplier == 1
 
 
-def test_usage_built_by_hand_fills_the_new_totals() -> None:
-    usage = Usage(credits=3, engine="browser", proxy="basic", screenshot_slices=0)
+def test_usage_built_by_hand_takes_the_new_totals() -> None:
+    usage = Usage(
+        total_credit_cost=3,
+        screenshot_slicing_credit_cost=0,
+        engine="browser",
+        proxy="basic",
+    )
     assert usage.total_credit_cost == 3
     assert usage.screenshot_slicing_credit_cost == 0
 
 
-def test_sync_map_usage_reads_new_and_falls_back_to_old() -> None:
+def test_sync_map_usage_reads_new_and_ignores_removed() -> None:
     new = make_sync(_router(_page_404(), NEW_USAGE, NEW_MAP_USAGE)).map(url="https://example.com")
     assert new.response_meta.usage.total_credit_cost == 5
     assert new.response_meta.usage.engine_credit_cost == 1
     assert new.response_meta.usage.proxy_multiplier == 5
-    assert new.response_meta.usage.credits == 5
+    assert not hasattr(new.response_meta.usage, "credits")
     assert not hasattr(new.response_meta.usage, "screenshot_slicing_credit_cost")
 
     old = make_sync(_router(_old_page(), OLD_USAGE, OLD_MAP_USAGE)).map(url="https://example.com")
     assert old.response_meta.usage.total_credit_cost == 1
-    assert old.response_meta.usage.engine_credit_cost is None
-    assert old.response_meta.usage.proxy_multiplier is None
-    assert old.response_meta.usage.credits == 1
+    assert old.response_meta.usage.engine_credit_cost == 1
+    assert old.response_meta.usage.proxy_multiplier == 1
+    assert not hasattr(old.response_meta.usage, "credits")
 
 
-async def test_async_map_usage_reads_new_and_falls_back_to_old() -> None:
+async def test_async_map_usage_reads_new_and_ignores_removed() -> None:
     async with make_async(_router(_page_404(), NEW_USAGE, NEW_MAP_USAGE)) as client:
         new = await client.map(url="https://example.com")
     async with make_async(_router(_old_page(), OLD_USAGE, OLD_MAP_USAGE)) as client:
@@ -284,11 +300,11 @@ async def test_async_map_usage_reads_new_and_falls_back_to_old() -> None:
     assert new.response_meta.usage.total_credit_cost == 5
     assert new.response_meta.usage.proxy_multiplier == 5
     assert old.response_meta.usage.total_credit_cost == 1
-    assert old.response_meta.usage.proxy_multiplier is None
+    assert old.response_meta.usage.proxy_multiplier == 1
 
 
-def test_map_usage_built_by_hand_fills_the_new_total() -> None:
-    assert MapUsage(credits=5, engine="http", proxy="advanced").total_credit_cost == 5
+def test_map_usage_built_by_hand_takes_the_new_total() -> None:
+    assert MapUsage(total_credit_cost=5, engine="http", proxy="advanced").total_credit_cost == 5
 
 
 # ----------------------------------------------------------------------
@@ -399,25 +415,25 @@ def test_not_found_is_only_about_our_own_resources() -> None:
     assert isinstance(err, NotFoundError)
 
 
-def test_usage_without_the_deprecated_fields_still_parses() -> None:
-    # The api will drop `credits` and `screenshot_slices` in a future version;
-    # the sdk fills them from the new names so old code keeps working.
-    new_only = {k: v for k, v in NEW_USAGE.items() if k not in ("credits", "screenshot_slices")}
-    usage = from_dict(Usage, new_only)
-    assert usage.credits == 15
-    assert usage.screenshot_slices == 0
+def test_usage_ignores_the_removed_fields() -> None:
+    # The api still sends `credits` and `screenshot_slices`. The sdk neither
+    # reads nor keeps them, and it parses the same once the api drops them.
+    with_old = from_dict(Usage, {**NEW_USAGE, "credits": 15, "screenshot_slices": 0})
+    without_old = from_dict(Usage, NEW_USAGE)
+    assert with_old == without_old
+    assert not hasattr(with_old, "credits")
+    assert not hasattr(with_old, "screenshot_slices")
 
-    map_usage = from_dict(
-        MapUsage,
-        {
-            "total_credit_cost": 5,
-            "engine_credit_cost": 1,
-            "proxy_multiplier": 5,
-            "engine": "http",
-            "proxy": "advanced",
-        },
-    )
-    assert map_usage.credits == 5
+    map_body = {
+        "total_credit_cost": 5,
+        "engine_credit_cost": 1,
+        "proxy_multiplier": 5,
+        "engine": "http",
+        "proxy": "advanced",
+    }
+    map_with_old = from_dict(MapUsage, {**map_body, "credits": 5})
+    assert map_with_old == from_dict(MapUsage, map_body)
+    assert not hasattr(map_with_old, "credits")
 
 
 def test_usage_still_requires_engine_proxy_and_a_cost() -> None:
@@ -426,4 +442,4 @@ def test_usage_still_requires_engine_proxy_and_a_cost() -> None:
             Usage, {"total_credit_cost": 1, "screenshot_slicing_credit_cost": 0, "proxy": "basic"}
         )
     with pytest.raises(TypeError):
-        from_dict(Usage, {"engine": "http", "proxy": "basic", "screenshot_slices": 0})
+        from_dict(Usage, {"engine": "http", "proxy": "basic", "screenshot_slicing_credit_cost": 0})

@@ -143,10 +143,10 @@ def test_get_scrape_status_done_carries_usage_meta() -> None:
                 "created_at": "2026-05-28T00:00:00Z",
                 "response_meta": {
                     "usage": {
-                        "credits": 5,
+                        "total_credit_cost": 5,
                         "engine": "http",
                         "proxy": "advanced",
-                        "screenshot_slices": 0,
+                        "screenshot_slicing_credit_cost": 0,
                     }
                 },
             }
@@ -156,10 +156,10 @@ def test_get_scrape_status_done_carries_usage_meta() -> None:
     status = client.get_scrape_status("job_123")
     assert status.status == "done"
     assert status.response_meta is not None
-    assert status.response_meta.usage.credits == 5
+    assert status.response_meta.usage.total_credit_cost == 5
     assert status.response_meta.usage.engine == "http"
     assert status.response_meta.usage.proxy == "advanced"
-    assert status.response_meta.usage.screenshot_slices == 0
+    assert status.response_meta.usage.screenshot_slicing_credit_cost == 0
 
 
 def test_job_id_is_url_encoded() -> None:

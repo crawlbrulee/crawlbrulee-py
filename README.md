@@ -206,15 +206,6 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   - `proxy` — the proxy tier that actually ran: `"basic"` or `"advanced"` (the
     **resolved** tier — `"auto"` is decided server-side and is never echoed
     here).
-  - `credits` — **deprecated**, use `total_credit_cost` (same value). it will be removed
-    in a future version.
-  - `screenshot_slices` — **deprecated**, use `screenshot_slicing_credit_cost` (same
-    value; despite the name it is a `0`/`1` charge, not a count). it will be removed in a
-    future version.
-
-  an older api version sends only `credits`, `engine`, `proxy` and `screenshot_slices`.
-  then `total_credit_cost` and `screenshot_slicing_credit_cost` are filled in from the
-  old names, and `engine_credit_cost` and `proxy_multiplier` are `None`.
 - `warnings` — a list of stable string codes flagging something worth noting on an
   otherwise-successful scrape, in two families. an output hit a cap and was truncated —
   loudly, never silently — so the payload is partial but still usable:
@@ -321,7 +312,7 @@ elif t.discovery_capped:
 ```
 
 `result.response_meta` carries map usage (`total_credit_cost`, `engine_credit_cost`,
-`proxy_multiplier`, `zero_data_retention_credit_cost`, billed `engine`, resolved `proxy`, and the deprecated `credits`) alongside
+`proxy_multiplier`, `zero_data_retention_credit_cost`, billed `engine`, resolved `proxy`) alongside
 the `pagination` and `truncation` blocks. a map has no `page_status_code` and no slicing cost.
 an empty map is free when the site answered only with statuses we don't bill (a `5xx`, for example), or not at all. `truncation` has:
 

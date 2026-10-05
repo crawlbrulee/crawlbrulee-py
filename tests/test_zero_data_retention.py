@@ -95,7 +95,13 @@ def test_usage_field_parses_and_is_none_when_absent() -> None:
     assert usage.zero_data_retention_credit_cost == 1
     assert usage.total_credit_cost == 6
     older = from_dict(
-        Usage, {"credits": 1, "engine": "http", "proxy": "basic", "screenshot_slices": 0}
+        Usage,
+        {
+            "total_credit_cost": 1,
+            "engine": "http",
+            "proxy": "basic",
+            "screenshot_slicing_credit_cost": 0,
+        },
     )
     assert older.zero_data_retention_credit_cost is None
 
@@ -115,7 +121,7 @@ def test_map_usage_field_parses_and_is_none_when_absent() -> None:
     assert usage.zero_data_retention_credit_cost == 1
     assert (
         from_dict(
-            MapUsage, {"credits": 1, "engine": "http", "proxy": "basic"}
+            MapUsage, {"total_credit_cost": 1, "engine": "http", "proxy": "basic"}
         ).zero_data_retention_credit_cost
         is None
     )

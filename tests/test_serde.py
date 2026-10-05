@@ -107,7 +107,7 @@ def test_from_dict_handles_null_for_non_optional_list_field() -> None:
             "links": None,
             "response_meta": {
                 "usage": {
-                    "credits": 0,
+                    "total_credit_cost": 0,
                     "engine": "cache",
                     "proxy": "basic",
                 },

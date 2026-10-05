@@ -103,13 +103,6 @@ def _require(obj: object, *names: str) -> None:
         raise TypeError(f"{type(obj).__name__} is missing required field(s): {', '.join(missing)}")
 
 
-def _pair(obj: object, name: str, new: int | None, old: int | None) -> tuple[int, int]:
-    value = new if new is not None else old
-    if value is None:
-        raise TypeError(f"{type(obj).__name__} is missing required field: {name}")
-    return value, value
-
-
 @dataclass
 class Usage:
     """Per-request billing + routing usage, reported on ``response_meta.usage``.
@@ -130,29 +123,13 @@ class Usage:
     :attr:`ScrapeResponse.page_status_code <crawlbrulee.ScrapeResponse.page_status_code>`)
     has every cost part at ``0``; ``engine``, ``proxy`` and ``proxy_multiplier``
     are still reported.
-
-    Older api versions only send ``credits``, ``engine``, ``proxy`` and
-    ``screenshot_slices``. Then ``total_credit_cost`` and
-    ``screenshot_slicing_credit_cost`` are filled in from ``credits`` and
-    ``screenshot_slices`` (they always hold the same value), and
-    ``engine_credit_cost`` and ``proxy_multiplier`` are ``None``. Once the
-    api stops sending the deprecated names, they are filled in from the new
-    ones the same way.
     """
 
-    #: **Deprecated:** use :attr:`total_credit_cost`, which always has the same
-    #: value. Kept so existing code keeps working; it will be removed in a
-    #: future version.
-    credits: int = field(default=cast(int, None))
     #: Engine the request was billed at, for the delivered result: ``http``,
     #: ``browser``, ``screenshot``, or ``cache`` (served from cache).
     engine: BillingEngine = field(default=cast(BillingEngine, None))
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
     proxy: ResolvedProxyTier = field(default=cast(ResolvedProxyTier, None))
-    #: **Deprecated:** use :attr:`screenshot_slicing_credit_cost`, which always
-    #: has the same value. Despite its name this is a ``0``/``1`` charge, not a
-    #: count of slices. It will be removed in a future version.
-    screenshot_slices: int = field(default=cast(int, None))
     #: Credits charged for this request. ``0`` when nothing is billed: a page
     #: whose status is not billed, or a cache hit (a cache hit that cuts new
     #: screenshot slices still costs the ``1`` slicing add-on).
@@ -176,18 +153,7 @@ class Usage:
     zero_data_retention_credit_cost: int | None = None
 
     def __post_init__(self) -> None:
-        _require(self, "engine", "proxy")
-        # Older api versions send only the deprecated names; a later one may
-        # send only the new names. Each pair always holds the same value.
-        self.total_credit_cost, self.credits = _pair(
-            self, "total_credit_cost", self.total_credit_cost, self.credits
-        )
-        self.screenshot_slicing_credit_cost, self.screenshot_slices = _pair(
-            self,
-            "screenshot_slicing_credit_cost",
-            self.screenshot_slicing_credit_cost,
-            self.screenshot_slices,
-        )
+        _require(self, "engine", "proxy", "total_credit_cost", "screenshot_slicing_credit_cost")
 
 
 @dataclass
@@ -197,16 +163,8 @@ class MapUsage:
     The cost parts always add up:
     ``total_credit_cost == engine_credit_cost * proxy_multiplier
     + zero_data_retention_credit_cost``.
-
-    Older api versions only send ``credits``, ``engine`` and ``proxy``. Then
-    ``total_credit_cost`` is filled in from ``credits`` (they always hold the
-    same value), and ``engine_credit_cost`` and ``proxy_multiplier`` are ``None``.
     """
 
-    #: **Deprecated:** use :attr:`total_credit_cost`, which always has the same
-    #: value. Kept so existing code keeps working; it will be removed in a
-    #: future version.
-    credits: int = field(default=cast(int, None))
     #: ``http`` for fresh discovery or ``cache`` for a cached result.
     engine: MapBillingEngine = field(default=cast(MapBillingEngine, None))
     #: The proxy tier actually used (the resolved tier -- never ``auto``).
@@ -229,12 +187,7 @@ class MapUsage:
     zero_data_retention_credit_cost: int | None = None
 
     def __post_init__(self) -> None:
-        _require(self, "engine", "proxy")
-        # Older api versions send only the deprecated name; a later one may
-        # send only the new name. Both always hold the same value.
-        self.total_credit_cost, self.credits = _pair(
-            self, "total_credit_cost", self.total_credit_cost, self.credits
-        )
+        _require(self, "engine", "proxy", "total_credit_cost")
 
 
 #: Machine-readable error names returned by the crawlbrulee API. Stable

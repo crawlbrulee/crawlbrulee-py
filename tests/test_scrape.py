@@ -28,10 +28,10 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
                 "metadata": {"title": "Example", "keywords": ["a", "b"]},
                 "response_meta": {
                     "usage": {
-                        "credits": 1,
+                        "total_credit_cost": 1,
                         "engine": "http",
                         "proxy": "basic",
-                        "screenshot_slices": 0,
+                        "screenshot_slicing_credit_cost": 0,
                     },
                 },
                 "warnings": ["screenshot_truncated"],
@@ -55,10 +55,10 @@ def test_scrape_posts_to_endpoint_and_parses_response() -> None:
     assert page.metadata.title == "Example"
     assert page.metadata.keywords == ["a", "b"]
     assert page.response_meta is not None
-    assert page.response_meta.usage.credits == 1
+    assert page.response_meta.usage.total_credit_cost == 1
     assert page.response_meta.usage.engine == "http"
     assert page.response_meta.usage.proxy == "basic"
-    assert page.response_meta.usage.screenshot_slices == 0
+    assert page.response_meta.usage.screenshot_slicing_credit_cost == 0
     assert page.warnings == ["screenshot_truncated"]
 
 
@@ -71,10 +71,10 @@ def test_scrape_parses_meta_usage_on_cache_hit() -> None:
                 "markdown": "# cached",
                 "response_meta": {
                     "usage": {
-                        "credits": 0,
+                        "total_credit_cost": 0,
                         "engine": "cache",
                         "proxy": "advanced",
-                        "screenshot_slices": 0,
+                        "screenshot_slicing_credit_cost": 0,
                     },
                 },
             }
@@ -83,10 +83,10 @@ def test_scrape_parses_meta_usage_on_cache_hit() -> None:
     client = make_sync(handler)
     page = client.scrape(url="https://example.com")
     assert page.response_meta is not None
-    assert page.response_meta.usage.credits == 0
+    assert page.response_meta.usage.total_credit_cost == 0
     assert page.response_meta.usage.engine == "cache"
     assert page.response_meta.usage.proxy == "advanced"
-    assert page.response_meta.usage.screenshot_slices == 0
+    assert page.response_meta.usage.screenshot_slicing_credit_cost == 0
 
 
 def test_scrape_body_omits_none_and_nests_dataclasses() -> None:
