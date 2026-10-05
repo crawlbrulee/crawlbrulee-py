@@ -31,6 +31,7 @@ from ._errors import (
     TransportError,
     UsageAllocationError,
     ValidationError,
+    ZeroDataRetentionNotEnabledError,
     is_crawlbrulee_error,
 )
 from ._webhooks import WebhookVerificationResult, verify_webhook_signature
@@ -54,6 +55,7 @@ __all__ = [
     "TargetUnreachableError",
     "TooManyRedirectsError",
     "TransportError",
+    "ZeroDataRetentionNotEnabledError",
     "UsageAllocationError",
     "ValidationError",
     "is_crawlbrulee_error",

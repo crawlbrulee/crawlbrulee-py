@@ -192,6 +192,15 @@ class TargetUnreachableError(CrawlbruleeError):
     """
 
 
+class ZeroDataRetentionNotEnabledError(CrawlbruleeError):
+    """Raised when a request sent ``zero_data_retention=True`` but the option is
+    not enabled for your organization (HTTP 403,
+    ``zero_data_retention_not_enabled``).
+
+    The request is not billed. See https://crawlbrulee.com/docs/zero-data-retention.
+    """
+
+
 class TransportError(CrawlbruleeError):
     """Raised when a request cannot be sent or no structured response is parsed.
 
@@ -257,6 +266,14 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
     if name == "target_unreachable":
         return TargetUnreachableError(
             message, status=status, error_name="target_unreachable", response=body
+        )
+
+    if name == "zero_data_retention_not_enabled":
+        return ZeroDataRetentionNotEnabledError(
+            message,
+            status=status,
+            error_name="zero_data_retention_not_enabled",
+            response=body,
         )
 
     if name in ("invalid_credentials", "access_denied"):

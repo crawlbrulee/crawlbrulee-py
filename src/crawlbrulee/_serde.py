@@ -104,6 +104,7 @@ def scrape_body(
     cleanup: Any,
     proxy: str | None,
     location: Any,
+    zero_data_retention: bool | None = None,
 ) -> dict[str, Any]:
     """Build the JSON body for ``/api/scrape`` and ``/api/scrape/async``."""
     return _build_body(
@@ -115,6 +116,7 @@ def scrape_body(
             "cleanup": to_dict(cleanup),
             "proxy": proxy,
             "location": to_dict(location),
+            "zero_data_retention": zero_data_retention,
         }
     )
 
@@ -128,13 +130,16 @@ def async_scrape_body(
     proxy: str | None,
     location: Any,
     webhook: Any,
+    zero_data_retention: bool | None = None,
 ) -> dict[str, Any]:
     """Build the JSON body for ``/api/scrape/async``.
 
     Same as :func:`scrape_body` plus the async-only ``webhook`` field. The sync
     ``/api/scrape`` schema rejects ``webhook``, so it lives only here.
     """
-    body = scrape_body(url, extract, cache, require_js, cleanup, proxy, location)
+    body = scrape_body(
+        url, extract, cache, require_js, cleanup, proxy, location, zero_data_retention
+    )
     serialized = to_dict(webhook)
     if serialized is not None:
         body["webhook"] = serialized
@@ -151,6 +156,7 @@ def map_body(
     page: int | None,
     limit: int | None,
     location: Any,
+    zero_data_retention: bool | None = None,
 ) -> dict[str, Any]:
     """Build the JSON body for ``/api/map``.
 
@@ -168,5 +174,6 @@ def map_body(
             "page": page,
             "limit": limit,
             "location": to_dict(location),
+            "zero_data_retention": zero_data_retention,
         }
     )

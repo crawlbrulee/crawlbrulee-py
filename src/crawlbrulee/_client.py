@@ -107,6 +107,7 @@ class Crawlbrulee:
         cleanup: ScrapeCleanup | dict[str, Any] | None = None,
         proxy: ProxyTier | None = None,
         location: ScrapeLocation | dict[str, Any] | None = None,
+        zero_data_retention: bool | None = None,
         timeout: float | None = None,
     ) -> ScrapeResponse:
         """Scrape a URL synchronously and return the extracted content.
@@ -118,8 +119,16 @@ class Crawlbrulee:
         is a normal result with ``page_status_code == 404``, not an exception.
         Raises :class:`~crawlbrulee.TargetUnreachableError` when the site could
         not be reached at all.
+
+        ``zero_data_retention=True`` keeps the result out of the shared cache;
+        anything stored to deliver it is kept for 24 hours, then deleted. Adds 1
+        credit. Must be enabled for your organization, or
+        :class:`~crawlbrulee.ZeroDataRetentionNotEnabledError` is raised. See
+        https://crawlbrulee.com/docs/zero-data-retention.
         """
-        body = scrape_body(url, extract, cache, require_js, cleanup, proxy, location)
+        body = scrape_body(
+            url, extract, cache, require_js, cleanup, proxy, location, zero_data_retention
+        )
         data = self._transport.request("POST", "/api/scrape", body=body, timeout=timeout)
         return from_dict(ScrapeResponse, data)
 
@@ -134,6 +143,7 @@ class Crawlbrulee:
         proxy: ProxyTier | None = None,
         location: ScrapeLocation | dict[str, Any] | None = None,
         webhook: ScrapeWebhook | dict[str, Any] | None = None,
+        zero_data_retention: bool | None = None,
         timeout: float | None = None,
     ) -> AsyncScrapeResponse:
         """Submit a background scrape job and return its ``job_id``.
@@ -141,8 +151,16 @@ class Crawlbrulee:
         Pass ``webhook`` to receive a signed ``scrape.complete`` POST when the
         job finishes (async-only; verify deliveries with
         :func:`crawlbrulee.verify_webhook_signature`).
+
+        ``zero_data_retention=True`` keeps the result out of the shared cache;
+        anything stored to deliver it is kept for 24 hours, then deleted. Adds 1
+        credit. Must be enabled for your organization, or
+        :class:`~crawlbrulee.ZeroDataRetentionNotEnabledError` is raised. See
+        https://crawlbrulee.com/docs/zero-data-retention.
         """
-        body = async_scrape_body(url, extract, cache, require_js, cleanup, proxy, location, webhook)
+        body = async_scrape_body(
+            url, extract, cache, require_js, cleanup, proxy, location, webhook, zero_data_retention
+        )
         data = self._transport.request("POST", "/api/scrape/async", body=body, timeout=timeout)
         return from_dict(AsyncScrapeResponse, data)
 
@@ -266,6 +284,7 @@ class Crawlbrulee:
         page: int | None = None,
         limit: int | None = None,
         location: MapLocation | dict[str, Any] | None = None,
+        zero_data_retention: bool | None = None,
         timeout: float | None = None,
     ) -> MapResponse:
         """Build (or return a cached) site link-map for a domain.
@@ -282,8 +301,25 @@ class Crawlbrulee:
         that the site has more is
         ``response_meta.truncation.discovery_cap_reason == "max_urls"``. Ask
         again with a higher ``max_urls`` to get them.
+
+        ``zero_data_retention=True`` keeps the result out of the shared cache;
+        anything stored to deliver it is kept for 24 hours, then deleted. Adds 1
+        credit. Must be enabled for your organization, or
+        :class:`~crawlbrulee.ZeroDataRetentionNotEnabledError` is raised. See
+        https://crawlbrulee.com/docs/zero-data-retention.
         """
-        body = map_body(url, proxy, sitemap_only, types, cache, max_urls, page, limit, location)
+        body = map_body(
+            url,
+            proxy,
+            sitemap_only,
+            types,
+            cache,
+            max_urls,
+            page,
+            limit,
+            location,
+            zero_data_retention,
+        )
         data = self._transport.request("POST", "/api/map", body=body, timeout=timeout)
         return from_dict(MapResponse, data)
 

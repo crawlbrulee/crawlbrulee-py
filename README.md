@@ -188,7 +188,7 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
 - `metadata` — extracted page metadata (`title`, `description`, OG/Twitter
   tags, …), present when `extract.metadata` is on (the default).
 - `response_meta.usage` — per-request billing + routing usage. the parts always add up:
-  `total_credit_cost == engine_credit_cost * proxy_multiplier + screenshot_slicing_credit_cost`.
+  `total_credit_cost == engine_credit_cost * proxy_multiplier + screenshot_slicing_credit_cost + zero_data_retention_credit_cost`.
   - `total_credit_cost` — credits charged for this request. `0` when nothing is billed: a
     page whose status is not billed, or a cache hit (a cache hit that cuts new screenshot
     slices still costs the `1` slicing add-on).
@@ -199,6 +199,8 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
     engine cost is `0`.
   - `screenshot_slicing_credit_cost` — `1` when the screenshot was cut into slices on this
     request (a flat +1, outside the proxy multiplier, however many slices), else `0`.
+  - `zero_data_retention_credit_cost` — `1` when `zero_data_retention` added its credit, else `0`.
+    `None` on an older api version.
   - `engine` — the delivered billing base: `"http"`, `"browser"`, `"screenshot"`,
     or `"cache"`. use `engine == "cache"` to identify a cache hit.
   - `proxy` — the proxy tier that actually ran: `"basic"` or `"advanced"` (the
@@ -267,6 +269,17 @@ the sdk raises when we could not return the page — for example
 `TargetUnreachableError` when the site could not be reached, or `AntibotBlockedError`
 when a bot check blocked us. see [errors](#errors).
 
+### zero data retention
+
+pass `zero_data_retention=True` to `scrape`, `scrape_async` or `map` (sync and async client) to keep the result out of the shared cache. anything stored to deliver it is kept for 24 hours, then deleted. it adds 1 credit and must be enabled for your organization. see [zero data retention](https://crawlbrulee.com/docs/zero-data-retention).
+
+```python
+page = client.scrape(url="https://example.com", zero_data_retention=True)
+print(page.response_meta.usage.zero_data_retention_credit_cost)  # 1
+```
+
+if it is not enabled, the sdk raises `ZeroDataRetentionNotEnabledError` (`403`, not billed).
+
 ### mapping
 
 ```python
@@ -308,7 +321,7 @@ elif t.discovery_capped:
 ```
 
 `result.response_meta` carries map usage (`total_credit_cost`, `engine_credit_cost`,
-`proxy_multiplier`, billed `engine`, resolved `proxy`, and the deprecated `credits`) alongside
+`proxy_multiplier`, `zero_data_retention_credit_cost`, billed `engine`, resolved `proxy`, and the deprecated `credits`) alongside
 the `pagination` and `truncation` blocks. a map has no `page_status_code` and no slicing cost.
 an empty map is free when the site answered only with statuses we don't bill (a `5xx`, for example), or not at all. `truncation` has:
 
@@ -475,6 +488,7 @@ every failure raised by the sdk subclasses `CrawlbruleeError`:
 | `ValidationError` | bad request (`invalid_url`, `url_too_long`, `blocked_url`, …). |
 | `NotFoundError` | 404 for one of the api's own resources (e.g. unknown async `job_id`). never a target page — a 404 page is a result. |
 | `TargetUnreachableError` | 502 `target_unreachable` — we could not reach the target site at all. not billed; retrying may help. |
+| `ZeroDataRetentionNotEnabledError` | 403 `zero_data_retention_not_enabled` — the request sent `zero_data_retention=True` but it is not enabled for your organization. not billed. |
 | `ServiceUnavailableError` | 503 (`service_unavailable`). transient infrastructure failure on our side — retry it. |
 | `TransportError` | network failure, timeout, or non-json response. |
 | `CrawlbruleeError` | base class — any other api error. always has `status`, `error_name`, `message`. |

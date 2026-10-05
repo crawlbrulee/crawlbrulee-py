@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "crawlbrulee"
-version = "1.1.0"
+version = "1.2.0"
 description = "official python sdk for crawlbrulee — EU-native web scraping for AI agents & developers. any url to clean markdown, screenshots, metadata and links."
 readme = "README.md"
 requires-python = ">=3.10"

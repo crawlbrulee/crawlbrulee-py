@@ -120,7 +120,11 @@ class Usage:
 
     The cost parts always add up::
 
-        total_credit_cost == engine_credit_cost * proxy_multiplier + screenshot_slicing_credit_cost
+        total_credit_cost == (
+            engine_credit_cost * proxy_multiplier
+            + screenshot_slicing_credit_cost
+            + zero_data_retention_credit_cost
+        )
 
     A page we don't bill (for example a ``5xx`` page, see
     :attr:`ScrapeResponse.page_status_code <crawlbrulee.ScrapeResponse.page_status_code>`)
@@ -167,6 +171,9 @@ class Usage:
     #: many slices), else ``0``. A cache hit that reuses slices that already
     #: exist costs ``0``.
     screenshot_slicing_credit_cost: int = field(default=cast(int, None))
+    #: Credits added by zero data retention: ``1`` on a billed, fresh result,
+    #: else ``0``. ``None`` on an older api version.
+    zero_data_retention_credit_cost: int | None = None
 
     def __post_init__(self) -> None:
         _require(self, "engine", "proxy")
@@ -188,7 +195,8 @@ class MapUsage:
     """Per-request billing + routing usage for a map response.
 
     The cost parts always add up:
-    ``total_credit_cost == engine_credit_cost * proxy_multiplier``.
+    ``total_credit_cost == engine_credit_cost * proxy_multiplier
+    + zero_data_retention_credit_cost``.
 
     Older api versions only send ``credits``, ``engine`` and ``proxy``. Then
     ``total_credit_cost`` is filled in from ``credits`` (they always hold the
@@ -216,6 +224,9 @@ class MapUsage:
     #: ``5`` for ``advanced``. ``None`` on an older api version that does not
     #: send it.
     proxy_multiplier: int | None = None
+    #: Credits added by zero data retention: ``1`` on a billed, fresh result,
+    #: else ``0``. ``None`` on an older api version.
+    zero_data_retention_credit_cost: int | None = None
 
     def __post_init__(self) -> None:
         _require(self, "engine", "proxy")
@@ -256,6 +267,7 @@ ApiErrorName = Literal[
     "too_many_redirects",
     "page_too_large",
     "target_unreachable",
+    "zero_data_retention_not_enabled",
 ]
 
 #: Reason a usage allocation was denied (when ``name == usage_allocation_error``).
