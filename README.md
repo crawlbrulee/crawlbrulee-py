@@ -134,6 +134,8 @@ defaults apply.
 - **screenshots.** in rare cases a screenshot can't be captured; when you also requested
   other outputs, those still arrive and the screenshot is simply left out, so
   `page.screenshot` is `None` — guard for it (`page.screenshot and page.screenshot.url`).
+  the `url` of the screenshot and of every slice is a signed link that expires 24 hours
+  after the scrape, so download the image and keep the file, not the link.
   a screenshot-**only** request that can't deliver fails instead — `422`
   `unsupported_screenshot_output` when the content type can't be screenshotted, `500` on
   a capture failure — and isn't billed. custom `viewport.width`/`height` are
@@ -173,6 +175,11 @@ page = client.wait_for_scrape(job.job_id, interval=2.0, timeout=300.0)
 job fails, or `error_name="request_timeout"` if the wait expires (`timeout=0` waits
 forever). the job lifecycle itself — states, retention, and when to prefer async over
 sync — is documented under [async scrape](https://crawlbrulee.com/docs/scrape/async).
+
+a job's status and result are available for 24 hours after you submit it. after that,
+`get_scrape_status` and `get_scrape_result` raise `NotFoundError`, the same as for an
+unknown `job_id`. screenshot links in the result expire at the same moment, however
+late you fetch it.
 
 #### the scrape response
 
@@ -477,7 +484,7 @@ every failure raised by the sdk subclasses `CrawlbruleeError`:
 | `RateLimitError` | 429. exposes `retry_after_ms` and `limited_by` when provided. |
 | `UsageAllocationError` | plan limit hit. exposes `reason` and `usage`. |
 | `ValidationError` | bad request (`invalid_url`, `url_too_long`, `blocked_url`, …). |
-| `NotFoundError` | 404 for one of the api's own resources (e.g. unknown async `job_id`). never a target page — a 404 page is a result. |
+| `NotFoundError` | 404 for one of the api's own resources (e.g. an unknown async `job_id`, or one submitted more than 24 hours ago). never a target page — a 404 page is a result. |
 | `TargetUnreachableError` | 502 `target_unreachable` — we could not reach the target site at all. not billed; retrying may help. |
 | `ZeroDataRetentionNotEnabledError` | 403 `zero_data_retention_not_enabled` — the request sent `zero_data_retention=True` but it is not enabled for your organization. not billed. |
 | `ServiceUnavailableError` | 503 (`service_unavailable`). transient infrastructure failure on our side — retry it. |

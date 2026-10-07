@@ -4,6 +4,12 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 1.2.1 (2026-10-07)
+
+### changed
+
+- **docs only.** screenshot and slice `url`s are signed links that expire 24 hours after the scrape (for an async scrape, 24 hours after it was submitted), so download the image and keep the file, not the link. an async job's status and result are available for 24 hours after you submit it; after that `get_scrape_status` and `get_scrape_result` raise `NotFoundError`. the field comments and the readme say so. no code changes.
+
 ## 1.2.0 (2026-10-05)
 
 ### added

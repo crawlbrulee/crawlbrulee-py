@@ -146,6 +146,9 @@ class ScreenshotSlice:
     """One horizontal tile of a sliced full-page screenshot."""
 
     row_nr: int
+    #: Signed link to this slice image. Expires 24 hours after the scrape (for an
+    #: async scrape, 24 hours after it was submitted). Download the image; don't
+    #: keep the link.
     url: str
     properties: ScreenshotProperties
     type: Literal["slice"] = "slice"
@@ -155,6 +158,9 @@ class ScreenshotSlice:
 class ScreenshotResult:
     """Result block returned when a screenshot was requested."""
 
+    #: Signed link to the full screenshot image. Expires 24 hours after the scrape
+    #: (for an async scrape, 24 hours after it was submitted). Download the image;
+    #: don't keep the link.
     url: str
     type: ScreenshotType
     properties: ScreenshotProperties
