@@ -109,7 +109,7 @@ client.scrape(
         links=True,
         screenshot=ScreenshotRequest(type="full_page", device_mode="desktop"),
     ),
-    # Shapes markdown, cleaned_html, links, images AND the screenshot.
+    # Shapes markdown, cleaned_html, links, images, elements AND the screenshot.
     # Never touches raw_html - that is always the page before any removal.
     cleanup=ScrapeCleanup(
         ads_and_popups=True,
@@ -194,6 +194,8 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   that does not send it.
 - `metadata` — extracted page metadata (`title`, `description`, OG/Twitter
   tags, …), present when `extract.metadata` is on (the default).
+- `elements` — the values you asked for in `extract.elements`, under the same names.
+  see [reading parts of the page](#reading-parts-of-the-page).
 - `response_meta.usage` — per-request billing + routing usage. the parts always add up:
   `total_credit_cost == engine_credit_cost * proxy_multiplier + screenshot_slicing_credit_cost + zero_data_retention_credit_cost`.
   - `total_credit_cost` — credits charged for this request. `0` when nothing is billed: a
@@ -220,7 +222,7 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   - `links_truncated` — the page had more than 30 000 links.
   - `inline_images_truncated` — the page had more than 10 000 inline images.
   - `raw_html_truncated` — the serialized body html exceeded 10 000 000 characters.
-  - `metadata_truncated` — the serialized head html exceeded 2 000 000 characters.
+  - `elements_truncated` — at least one `elements` value hit a limit.
 
   or one section's extraction failed, so that field comes back omitted or empty while the
   rest of the scrape succeeds — which is how you tell "the page had none" from "we
@@ -228,6 +230,11 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   - `links_unavailable` — link extraction failed.
   - `inline_images_unavailable` — image extraction failed.
   - `metadata_unavailable` — metadata extraction failed.
+  - `screenshot_unavailable` — a screenshot was asked for, but the page came back from the
+    `http` engine without one.
+
+  `metadata_truncated` is retired and no longer sent. it can still show up on results
+  stored before that change.
 
   the page body has no such code: if it can't be extracted the scrape fails outright
   rather than returning a hollow `200`, and isn't billed.
@@ -237,7 +244,7 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   stored with the result, so cache hits and async result fetches report them too,
   filtered to the outputs you asked for.
 - `unsupported_fields` — if you request an extract that doesn't apply to the content type
-  (e.g. `markdown` of a pdf), that field name comes back here and the rest of your payload is
+  (e.g. `elements` of a JSON page), that field name comes back here and the rest of your payload is
   still returned.
 
 ```python
@@ -266,6 +273,47 @@ cost part at `0`. errors (below) are never billed.
 the sdk raises when we could not return the page — for example
 `TargetUnreachableError` when the site could not be reached, or `AntibotBlockedError`
 when a bot check blocked us. see [errors](#errors).
+
+### reading parts of the page
+
+`extract.elements` reads named values from the page by CSS selector. each name is yours to
+pick. a plain selector string returns the text of the first match. a `ScrapeElementSpec`
+can return html or an attribute, every match (`all=True`), or an object per match
+(`fields`, read inside that match). it costs no extra credits.
+
+```python
+from crawlbrulee import ScrapeElementSpec, ScrapeExtract
+
+page = client.scrape(
+    url="https://books.toscrape.com/",
+    extract=ScrapeExtract(
+        elements={
+            "heading": "h1",
+            "books": ScrapeElementSpec(
+                selector="article.product_pod",
+                all=True,
+                fields={
+                    "title": ScrapeElementSpec(
+                        selector="h3 a", output="attribute", attribute="title"
+                    ),
+                    "price": ".price_color",
+                },
+            ),
+        }
+    ),
+)
+print(page.elements)
+# {'heading': 'All products',
+#  'books': [{'title': 'A Light in the Attic', 'price': '£51.77'}, ...]}
+```
+
+a name with no match is `None` (`[]` with `all=True`). a plain dict with the same keys
+works in place of a `ScrapeElementSpec`, for example
+`{"selector": "h3 a", "output": "attribute", "attribute": "title"}` (typed as
+`ScrapeElementSpecDict`). if you build the map first and pass it in later, annotate it
+as `ScrapeElements` (`specs: ScrapeElements = {"title": {"selector": "h1"}}`) so type
+checkers accept it. limits and selector rules: see
+[elements](https://crawlbrulee.com/docs/scrape/elements).
 
 ### zero data retention
 

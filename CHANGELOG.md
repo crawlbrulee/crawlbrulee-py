@@ -4,6 +4,21 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
+## 1.3.0 (2026-10-09)
+
+### added
+
+- **`extract.elements`**: read named values from the page by CSS selector. `ScrapeExtract.elements` (a `ScrapeElements` map) takes a selector string, a `ScrapeElementSpec` or the same spec as a plain dict (`ScrapeElementSpecDict`) per name (with `ScrapeElementOutput` and `ScrapeElementSelector`). any `Mapping` works for the map and for `fields`. the values come back on `ScrapeResponse.elements` (typed as `ScrapeElementValue`) from `scrape`, `get_scrape_result` and `wait_for_scrape`. `ScrapeWarningCode` gains `"elements_truncated"`. see [elements](https://crawlbrulee.com/docs/scrape/elements).
+- **`screenshot_unavailable`** in `ScrapeWarningCode`: a screenshot was asked for, but the page came back from the `http` engine without one.
+
+### deprecated
+
+- **`metadata_truncated`** is retired and no longer sent (metadata has no size limit of its own now). it stays in `ScrapeWarningCode` because results stored before that change can still carry it.
+
+### changed
+
+- **docs only.** the `ScrapeCleanup.exclude_selectors` and `ScrapeCache` notes no longer say that selectors skip the cache. requests with different `exclude_selectors` now each have their own cache entry.
+
 ## 1.2.1 (2026-10-07)
 
 ### changed

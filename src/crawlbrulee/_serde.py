@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import types as _types
+from collections.abc import Mapping
 from functools import cache
 from typing import Any, TypeVar, Union, get_args, get_origin, get_type_hints
 
@@ -23,8 +24,9 @@ def _type_hints(cls: type) -> dict[str, Any]:
 
 
 def to_dict(obj: Any) -> Any:
-    """Recursively convert a dataclass / list / dict to a JSON-ready value,
-    omitting ``None`` fields. Plain values pass through unchanged."""
+    """Recursively convert a dataclass / list / mapping to a JSON-ready value,
+    omitting ``None`` fields. Any ``Mapping`` becomes a plain ``dict``. Plain
+    values pass through unchanged."""
     if obj is None:
         return None
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
@@ -38,7 +40,7 @@ def to_dict(obj: Any) -> Any:
         return out
     if isinstance(obj, (list, tuple)):
         return [to_dict(v) for v in obj]
-    if isinstance(obj, dict):
+    if isinstance(obj, Mapping):
         return {k: to_dict(v) for k, v in obj.items() if v is not None}
     return obj
 

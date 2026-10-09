@@ -2,14 +2,73 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias, TypedDict
 
 from .common import ScreenshotRequest, ScreenshotType, Usage
 
 # --------------------------------------------------------------------------
 # Request shapes (nested; top-level fields are method keyword arguments)
 # --------------------------------------------------------------------------
+
+
+#: What an ``extract.elements`` spec returns for each match: ``text`` (the
+#: default), ``html`` (the outer HTML) or ``attribute`` (the value of
+#: :attr:`ScrapeElementSpec.attribute`).
+ScrapeElementOutput = Literal["text", "html", "attribute"]
+
+
+@dataclass
+class ScrapeElementSpec:
+    """One named value in ``extract.elements``, read by CSS selector.
+
+    A plain selector string does the same as ``ScrapeElementSpec(selector=...)``:
+    the text of the first match. Rules and limits:
+    https://crawlbrulee.com/docs/scrape/elements
+    """
+
+    #: CSS selector. At most 500 characters.
+    selector: str
+    #: What to return for each match. Defaults to ``text``. Leave it out when
+    #: you set ``fields``.
+    output: ScrapeElementOutput | None = None
+    #: The attribute to read when ``output`` is ``attribute``. ``href`` and
+    #: ``src`` come back as full urls.
+    attribute: str | None = None
+    #: ``True`` returns every match as a list instead of the first. Default ``False``.
+    all: bool | None = None
+    #: Used instead of ``output``: turns each match into an object. Each field is
+    #: a name and a selector (or spec) read inside that match only. Fields nest
+    #: up to 3 levels; the innermost level has no ``fields``.
+    fields: Mapping[str, ScrapeElementSelector] | None = None
+
+
+class _ScrapeElementSpecDictRequired(TypedDict):
+    selector: str
+
+
+class ScrapeElementSpecDict(_ScrapeElementSpecDictRequired, total=False):
+    """The plain-dict form of :class:`ScrapeElementSpec`, with the same keys.
+
+    ``selector`` is required; the other keys are optional.
+    """
+
+    output: ScrapeElementOutput
+    attribute: str
+    all: bool
+    fields: Mapping[str, ScrapeElementSelector]
+
+
+#: A value in ``extract.elements`` (or in :attr:`ScrapeElementSpec.fields`): a
+#: selector string, which returns the text of the first match, a
+#: :class:`ScrapeElementSpec`, or the same spec as a plain dict
+#: (:class:`ScrapeElementSpecDict`).
+ScrapeElementSelector: TypeAlias = str | ScrapeElementSpec | ScrapeElementSpecDict
+
+#: The ``extract.elements`` map: a name you pick to a selector string, a
+#: :class:`ScrapeElementSpec` or a plain dict spec. Any ``Mapping`` works.
+ScrapeElements: TypeAlias = Mapping[str, ScrapeElementSelector]
 
 
 @dataclass
@@ -22,9 +81,6 @@ class ScrapeExtract:
     """
 
     #: Extract page metadata (title, description, OG/Twitter tags). Default ``True``.
-    #: Read from at most 2 000 000 characters of serialized ``<head>`` HTML per
-    #: page; past that the head is truncated (tags after the cut are not parsed)
-    #: and a ``metadata_truncated`` warning is returned.
     metadata: bool | None = None
     #: Extract cleaned HTML (main content only). Default ``True``.
     cleaned_html: bool | None = None
@@ -47,15 +103,22 @@ class ScrapeExtract:
     images: bool | None = None
     #: Capture a screenshot. Omit to skip; set a ``ScreenshotRequest`` to enable.
     screenshot: ScreenshotRequest | None = None
+    #: Named values to read from the page by CSS selector. Each key is a name you
+    #: pick; each value is a selector string, a :class:`ScrapeElementSpec`, or
+    #: the same spec as a plain dict (:class:`ScrapeElementSpecDict`). The
+    #: values come back in :attr:`ScrapeResponse.elements` under the same names.
+    #: No extra credits. See https://crawlbrulee.com/docs/scrape/elements
+    elements: ScrapeElements | None = None
 
 
 @dataclass
 class ScrapeCleanup:
     """What is removed from the page before any output is built.
 
-    Applies to ``markdown``, ``cleaned_html``, ``links`` and ``images`` on every
-    engine, and to the screenshot. It never applies to ``raw_html`` — that is
-    always the page as it arrived, before anything was removed.
+    Applies to ``markdown``, ``cleaned_html``, ``links``, ``images`` and
+    ``elements`` on every engine, and to the screenshot. It never applies to
+    ``raw_html`` — that is always the page as it arrived, before anything was
+    removed.
     """
 
     #: Remove ads, cookie banners, consent dialogs and chat widgets. Defaults to
@@ -64,8 +127,8 @@ class ScrapeCleanup:
     ads_and_popups: bool | None = None
     #: CSS selectors whose elements are removed before anything is captured. Use
     #: it for a banner or widget ``ads_and_popups`` does not recognise. At most
-    #: 100 selectors, each at most 500 characters. Sending any selector here
-    #: makes the request skip the cache, so it always costs a live fetch.
+    #: 100 selectors, each at most 500 characters. Requests with different
+    #: selectors here don't share a cache entry.
     exclude_selectors: list[str] | None = None
 
 
@@ -73,9 +136,11 @@ class ScrapeCleanup:
 class ScrapeCache:
     """Cache settings for a scrape request.
 
-    ``max_age`` is the only cache control. ``cleanup.exclude_selectors`` and a
-    non-zero ``actions_before`` wait or scroll disable the cache for that
-    request.
+    ``max_age`` is the only cache control. A non-zero ``actions_before`` wait
+    or scroll disables the cache for that request. Requests with different
+    ``cleanup.exclude_selectors`` don't share a cache entry. Changing
+    ``extract`` (``elements`` too) does not change whether a request is served
+    from cache.
     """
 
     #: Maximum cache age: a number of seconds (non-negative int) or an ISO-8601
@@ -118,6 +183,13 @@ class ScrapeWebhook:
 # --------------------------------------------------------------------------
 # Response shapes
 # --------------------------------------------------------------------------
+
+#: One value in :attr:`ScrapeResponse.elements`: a string, an object (from
+#: ``fields``, with the same names), a list of either (``all: True``), or
+#: ``None`` when nothing matched (``[]`` with ``all: True``).
+ScrapeElementValue: TypeAlias = (
+    str | dict[str, "ScrapeElementValue"] | list[str | dict[str, "ScrapeElementValue"]] | None
+)
 
 
 @dataclass
@@ -242,7 +314,8 @@ class ScrapeResponseMeta:
 #: - ``links_truncated`` -- the page had more than 30 000 links.
 #: - ``inline_images_truncated`` -- the page had more than 10 000 inline images.
 #: - ``raw_html_truncated`` -- the serialized body HTML exceeded 10 000 000 characters.
-#: - ``metadata_truncated`` -- the serialized head HTML exceeded 2 000 000 characters.
+#: - ``elements_truncated`` -- at least one ``elements`` value hit a limit (see
+#:   https://crawlbrulee.com/docs/scrape/elements).
 #:
 #: Unavailability -- that section's extraction failed, so the field is omitted or
 #: empty while the rest of the scrape succeeded. These distinguish "the page had
@@ -251,6 +324,12 @@ class ScrapeResponseMeta:
 #: - ``links_unavailable`` -- link extraction failed.
 #: - ``inline_images_unavailable`` -- image extraction failed.
 #: - ``metadata_unavailable`` -- metadata extraction failed.
+#: - ``screenshot_unavailable`` -- a screenshot was asked for, but the page came
+#:   back from the ``http`` engine without one.
+#:
+#: Deprecated: ``metadata_truncated`` is retired and no longer sent. Metadata has
+#: no size limit of its own now. It can still appear on results stored before
+#: that change, so it stays in this alias.
 #:
 #: The page body has no such code: if it can't be extracted the scrape fails
 #: outright rather than returning a hollow 200, and isn't billed.
@@ -263,9 +342,11 @@ ScrapeWarningCode = Literal[
     "inline_images_truncated",
     "raw_html_truncated",
     "metadata_truncated",
+    "elements_truncated",
     "links_unavailable",
     "inline_images_unavailable",
     "metadata_unavailable",
+    "screenshot_unavailable",
 ]
 
 
@@ -289,7 +370,8 @@ class ScrapeResponse:
     requested_url: str
     #: ``Content-Type`` header returned by the origin.
     content_type: str | None = None
-    #: Requested extract fields that aren't supported for this content type.
+    #: Requested extract fields that aren't supported for this content type
+    #: (``"elements"`` when the page is JSON, plain text, XML or markdown, not HTML).
     unsupported_fields: list[str] | None = None
     #: Page content as clean Markdown (when ``extract.markdown``).
     markdown: str | None = None
@@ -310,6 +392,10 @@ class ScrapeResponse:
     screenshot: ScreenshotResult | None = None
     #: Extracted page metadata (when ``extract.metadata``, on by default).
     metadata: ScrapeMetadata | None = None
+    #: The values asked for in ``extract.elements``, under the same names. Every
+    #: requested name is present, at every level of ``fields``. See
+    #: :data:`ScrapeElementValue`.
+    elements: dict[str, ScrapeElementValue] | None = None
     #: Request-level metadata: billing + routing usage for this request.
     response_meta: ScrapeResponseMeta | None = None
     #: Non-error notices about the scrape (stable codes -- safe to switch on):
