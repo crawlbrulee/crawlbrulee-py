@@ -9,7 +9,7 @@
 the official python sdk for [crawlbrulee](https://crawlbrulee.com), published to PyPI as [`crawlbrulee`](https://pypi.org/project/crawlbrulee/). one call turns any url into clean markdown, screenshots, metadata and links, with per-request usage on every response. typed sync and async clients with auth and error mapping built in.
 
 - **everything runs in the EU.** the fetch, the render, the cache and your result never leave EU servers. the proxy exit is the one hop you choose: pick an EU exit and nothing leaves at all. gdpr-aligned, with a data processing agreement.
-- **output made for models.** markdown with the page chrome stripped and the links kept, ready for the prompt. full-page screenshots can come back as tiles sized for an image model.
+- **output made for models.** markdown with ads, popups and cookie banners removed and the links kept, ready for the prompt. full-page screenshots can come back as tiles sized for an image model.
 - **the hard parts, handled.** headless Chrome when a page needs it, rotating proxies with country selection, automatic retries, ad and cookie-banner removal, caching, background jobs and signed webhooks.
 - **start free.** 750 credits, no credit card.
 

@@ -82,7 +82,8 @@ class ScrapeExtract:
 
     #: Extract page metadata (title, description, OG/Twitter tags). Default ``True``.
     metadata: bool | None = None
-    #: Extract cleaned HTML (main content only). Default ``True``.
+    #: Extract cleaned HTML: the page body with scripts, styles, ads and cookie banners
+    #: removed. Default ``True``.
     cleaned_html: bool | None = None
     #: Extract the page as clean Markdown. Default ``False``.
     markdown: bool | None = None
