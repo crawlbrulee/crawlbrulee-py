@@ -4,7 +4,7 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
-## 1.4.0 (unreleased)
+## 1.4.0 (2026-11-06)
 
 ### added
 
