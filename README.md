@@ -216,7 +216,7 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
     **resolved** tier — `"auto"` is decided server-side and is never echoed
     here).
 - `warnings` — a list of stable string codes flagging something worth noting on an
-  otherwise-successful scrape, in two families. an output hit a cap and was truncated —
+  otherwise-successful scrape. an output hit a cap and was truncated —
   loudly, never silently — so the payload is partial but still usable:
   - `screenshot_truncated` — a long page exceeded the scrolling-screenshot height cap.
   - `links_truncated` — the page had more than 30 000 links.
@@ -232,6 +232,10 @@ a successful `scrape` / `get_scrape_result` returns a `ScrapeResponse`:
   - `metadata_unavailable` — metadata extraction failed.
   - `screenshot_unavailable` — a screenshot was asked for, but the page came back from the
     `http` engine without one.
+
+  one more code is about what the request sent, not about the page:
+  - `custom_user_agent` — the request set its own `User-Agent` header; this can lower the
+    success rate.
 
   `metadata_truncated` is retired and no longer sent. it can still show up on results
   stored before that change.
@@ -313,7 +317,7 @@ works in place of a `ScrapeElementSpec`, for example
 `ScrapeElementSpecDict`). if you build the map first and pass it in later, annotate it
 as `ScrapeElements` (`specs: ScrapeElements = {"title": {"selector": "h1"}}`) so type
 checkers accept it. limits and selector rules: see
-[elements](https://crawlbrulee.com/docs/scrape/elements).
+[targeted extraction](https://crawlbrulee.com/docs/scrape/targeted-extraction).
 
 ### zero data retention
 
@@ -325,6 +329,38 @@ print(page.response_meta.usage.zero_data_retention_credit_cost)  # 1
 ```
 
 if it is not enabled, the sdk raises `ZeroDataRetentionNotEnabledError` (`403`, not billed).
+
+### headers and cookies
+
+pass `headers` and `cookies` to `scrape` or `scrape_async` (sync and async client) to send
+your own http headers and cookies to the site, for example an api key or a fixed `User-Agent`
+that a site has on its allowlist.
+
+```python
+from crawlbrulee import ScrapeCookie
+
+page = client.scrape(
+    url="https://app.example.com/orders",
+    headers={"Authorization": "Bearer …", "X-Tenant-Id": "acme"},
+    cookies=[ScrapeCookie(name="session_id", value="a1b2c3")],
+)
+```
+
+- headers go only to the origin of `url` (same scheme, host and port), or to its https
+  version when `url` is http, and not on a redirect to another origin. cookies go only to
+  the host of `url`.
+- a request with headers or cookies **never reads from or writes to the cache**, so every
+  call is a fresh scrape. it costs the same as any fresh scrape, with no extra fee.
+- on a plain `http://` url they travel unencrypted.
+- your own `User-Agent` can lower the success rate, and the response then carries the
+  `custom_user_agent` warning. never put secrets in the `User-Agent`.
+- a header that can't be set here (for example `Cookie`, or `Accept-Language`: use
+  `location.locale`) raises `ValidationError` with a message that names it.
+
+a plain dict works in place of a `ScrapeCookie`, for example
+`{"name": "session_id", "value": "a1b2c3"}` (typed as `ScrapeCookieDict`). if you build the
+list first and pass it in later, annotate it as `ScrapeCookies` so type checkers accept it.
+limits and rules: see [headers and cookies](https://crawlbrulee.com/docs/scrape/custom-headers-and-cookies).
 
 ### mapping
 

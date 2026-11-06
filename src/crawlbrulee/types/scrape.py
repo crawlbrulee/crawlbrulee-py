@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any, Literal, TypeAlias, TypedDict
 
 from .common import ScreenshotRequest, ScreenshotType, Usage
@@ -25,7 +25,7 @@ class ScrapeElementSpec:
 
     A plain selector string does the same as ``ScrapeElementSpec(selector=...)``:
     the text of the first match. Rules and limits:
-    https://crawlbrulee.com/docs/scrape/elements
+    https://crawlbrulee.com/docs/scrape/targeted-extraction
     """
 
     #: CSS selector. At most 500 characters.
@@ -108,7 +108,7 @@ class ScrapeExtract:
     #: pick; each value is a selector string, a :class:`ScrapeElementSpec`, or
     #: the same spec as a plain dict (:class:`ScrapeElementSpecDict`). The
     #: values come back in :attr:`ScrapeResponse.elements` under the same names.
-    #: No extra credits. See https://crawlbrulee.com/docs/scrape/elements
+    #: No extra credits. See https://crawlbrulee.com/docs/scrape/targeted-extraction
     elements: ScrapeElements | None = None
 
 
@@ -138,7 +138,8 @@ class ScrapeCache:
     """Cache settings for a scrape request.
 
     ``max_age`` is the only cache control. A non-zero ``actions_before`` wait
-    or scroll disables the cache for that request. Requests with different
+    or scroll disables the cache for that request. A request with ``headers``
+    or ``cookies`` never reads from or writes to the cache. Requests with different
     ``cleanup.exclude_selectors`` don't share a cache entry. Changing
     ``extract`` (``elements`` too) does not change whether a request is served
     from cache.
@@ -150,10 +151,44 @@ class ScrapeCache:
 
 
 @dataclass
+class ScrapeCookie:
+    """One of your own cookies to send to the site with the request.
+
+    Sent only to the host of ``url``. Cookies the site sets while redirecting
+    are not kept. Up to 20 cookies, each up to 4096 bytes (name and value),
+    counted toward the limit on ``headers``. A value may not hold ``;`` or
+    start or end with a space. A ``__Secure-``, ``__Host-`` or ``__Http-``
+    cookie needs an https url. See
+    https://crawlbrulee.com/docs/scrape/custom-headers-and-cookies
+    """
+
+    #: The cookie name. Must not be empty.
+    name: str
+    #: The cookie value. Often a secret, so it is left out of ``repr()``,
+    #: which keeps it out of logs, test output and error trackers.
+    value: str = field(repr=False)
+
+
+class ScrapeCookieDict(TypedDict):
+    """The plain-dict form of :class:`ScrapeCookie`, with the same keys.
+
+    Both ``name`` and ``value`` are required.
+    """
+
+    name: str
+    value: str
+
+
+#: The ``cookies`` list: each entry a :class:`ScrapeCookie` or the same cookie
+#: as a plain dict (:class:`ScrapeCookieDict`). A list or a tuple works.
+ScrapeCookies: TypeAlias = Sequence[ScrapeCookie | ScrapeCookieDict]
+
+
+@dataclass
 class ScrapeLocation:
     """Optional locale + country emulation for the scrape."""
 
-    #: BCP-47 locale (e.g. ``en-US``). Sent as ``Accept-Language``.
+    #: BCP-47 locale (e.g. ``en-US``): the language to ask the site for.
     locale: str | None = None
     #: ISO 3166-1 alpha-2 country code (e.g. ``US``). Drives the emulated timezone.
     country: str | None = None
@@ -306,7 +341,7 @@ class ScrapeResponseMeta:
     usage: Usage
 
 
-#: Stable codes that can appear in ``ScrapeResponse.warnings``, in two families.
+#: Stable codes that can appear in ``ScrapeResponse.warnings``, in three groups.
 #:
 #: Truncation -- the output was capped, loudly rather than silently, so the
 #: payload is partial but still usable:
@@ -316,7 +351,7 @@ class ScrapeResponseMeta:
 #: - ``inline_images_truncated`` -- the page had more than 10 000 inline images.
 #: - ``raw_html_truncated`` -- the serialized body HTML exceeded 10 000 000 characters.
 #: - ``elements_truncated`` -- at least one ``elements`` value hit a limit (see
-#:   https://crawlbrulee.com/docs/scrape/elements).
+#:   https://crawlbrulee.com/docs/scrape/targeted-extraction).
 #:
 #: Unavailability -- that section's extraction failed, so the field is omitted or
 #: empty while the rest of the scrape succeeded. These distinguish "the page had
@@ -327,6 +362,11 @@ class ScrapeResponseMeta:
 #: - ``metadata_unavailable`` -- metadata extraction failed.
 #: - ``screenshot_unavailable`` -- a screenshot was asked for, but the page came
 #:   back from the ``http`` engine without one.
+#:
+#: Request notices -- about what the request sent, not about the page:
+#:
+#: - ``custom_user_agent`` -- the request set its own ``User-Agent`` header;
+#:   this can lower the success rate.
 #:
 #: Deprecated: ``metadata_truncated`` is retired and no longer sent. Metadata has
 #: no size limit of its own now. It can still appear on results stored before
@@ -348,6 +388,7 @@ ScrapeWarningCode = Literal[
     "inline_images_unavailable",
     "metadata_unavailable",
     "screenshot_unavailable",
+    "custom_user_agent",
 ]
 
 
@@ -400,8 +441,9 @@ class ScrapeResponse:
     #: Request-level metadata: billing + routing usage for this request.
     response_meta: ScrapeResponseMeta | None = None
     #: Non-error notices about the scrape (stable codes -- safe to switch on):
-    #: an output was capped (``*_truncated``) or could not be extracted
-    #: (``*_unavailable``) -- see :data:`ScrapeWarningCode`. Kept as
+    #: an output was capped (``*_truncated``), could not be extracted
+    #: (``*_unavailable``), or the request set its own ``User-Agent``
+    #: (``custom_user_agent``) -- see :data:`ScrapeWarningCode`. Kept as
     #: ``list[str]`` so a code added later still deserializes.
     #:
     #: Warnings are stored with the result, so cache hits and async result

@@ -107,8 +107,15 @@ def scrape_body(
     proxy: str | None,
     location: Any,
     zero_data_retention: bool | None = None,
+    headers: Any = None,
+    cookies: Any = None,
 ) -> dict[str, Any]:
-    """Build the JSON body for ``/api/scrape`` and ``/api/scrape/async``."""
+    """Build the JSON body for ``/api/scrape`` and ``/api/scrape/async``.
+
+    ``headers`` is any ``Mapping`` and becomes a JSON object. ``cookies`` is a
+    list or tuple of ``ScrapeCookie`` dataclasses or ``{name, value}`` mappings,
+    and becomes a JSON array of objects.
+    """
     return _build_body(
         {
             "url": url,
@@ -119,6 +126,8 @@ def scrape_body(
             "proxy": proxy,
             "location": to_dict(location),
             "zero_data_retention": zero_data_retention,
+            "headers": to_dict(headers),
+            "cookies": None if cookies is None else [to_dict(c) for c in cookies],
         }
     )
 
@@ -133,6 +142,8 @@ def async_scrape_body(
     location: Any,
     webhook: Any,
     zero_data_retention: bool | None = None,
+    headers: Any = None,
+    cookies: Any = None,
 ) -> dict[str, Any]:
     """Build the JSON body for ``/api/scrape/async``.
 
@@ -140,7 +151,16 @@ def async_scrape_body(
     ``/api/scrape`` schema rejects ``webhook``, so it lives only here.
     """
     body = scrape_body(
-        url, extract, cache, require_js, cleanup, proxy, location, zero_data_retention
+        url,
+        extract,
+        cache,
+        require_js,
+        cleanup,
+        proxy,
+        location,
+        zero_data_retention,
+        headers=headers,
+        cookies=cookies,
     )
     serialized = to_dict(webhook)
     if serialized is not None:

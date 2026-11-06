@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from types import TracebackType
 from typing import Any
 
@@ -24,6 +25,7 @@ from .types.map import MapCache, MapLocation, MapResponse, MapTypes
 from .types.scrape import (
     ScrapeCache,
     ScrapeCleanup,
+    ScrapeCookies,
     ScrapeExtract,
     ScrapeLocation,
     ScrapeResponse,
@@ -108,6 +110,8 @@ class Crawlbrulee:
         proxy: ProxyTier | None = None,
         location: ScrapeLocation | dict[str, Any] | None = None,
         zero_data_retention: bool | None = None,
+        headers: Mapping[str, str] | None = None,
+        cookies: ScrapeCookies | None = None,
         timeout: float | None = None,
     ) -> ScrapeResponse:
         """Scrape a URL synchronously and return the extracted content.
@@ -125,9 +129,29 @@ class Crawlbrulee:
         credit. Must be enabled for your organization, or
         :class:`~crawlbrulee.ZeroDataRetentionNotEnabledError` is raised. See
         https://crawlbrulee.com/docs/zero-data-retention.
+
+        ``headers`` and ``cookies`` are your own headers and cookies, sent to the
+        site with the request, for example an api key or a fixed ``User-Agent``
+        that the site has on an allowlist. Headers go only to the origin of ``url`` (or its
+        https version, for an http url), not on a redirect to another origin;
+        cookies go only to its host. A request with either never reads from or
+        writes to the cache. Your own ``User-Agent``
+        can lower the success rate and adds the ``custom_user_agent`` warning;
+        never put secrets in it. A header or cookie that is not allowed raises
+        :class:`~crawlbrulee.ValidationError`. See
+        https://crawlbrulee.com/docs/scrape/custom-headers-and-cookies.
         """
         body = scrape_body(
-            url, extract, cache, require_js, cleanup, proxy, location, zero_data_retention
+            url,
+            extract,
+            cache,
+            require_js,
+            cleanup,
+            proxy,
+            location,
+            zero_data_retention,
+            headers=headers,
+            cookies=cookies,
         )
         data = self._transport.request("POST", "/api/scrape", body=body, timeout=timeout)
         return from_dict(ScrapeResponse, data)
@@ -144,6 +168,8 @@ class Crawlbrulee:
         location: ScrapeLocation | dict[str, Any] | None = None,
         webhook: ScrapeWebhook | dict[str, Any] | None = None,
         zero_data_retention: bool | None = None,
+        headers: Mapping[str, str] | None = None,
+        cookies: ScrapeCookies | None = None,
         timeout: float | None = None,
     ) -> AsyncScrapeResponse:
         """Submit a background scrape job and return its ``job_id``.
@@ -157,9 +183,30 @@ class Crawlbrulee:
         credit. Must be enabled for your organization, or
         :class:`~crawlbrulee.ZeroDataRetentionNotEnabledError` is raised. See
         https://crawlbrulee.com/docs/zero-data-retention.
+
+        ``headers`` and ``cookies`` are your own headers and cookies, sent to the
+        site with the request, for example an api key or a fixed ``User-Agent``
+        that the site has on an allowlist. Headers go only to the origin of ``url`` (or its
+        https version, for an http url), not on a redirect to another origin;
+        cookies go only to its host. A request with either never reads from or
+        writes to the cache. Your own ``User-Agent``
+        can lower the success rate and adds the ``custom_user_agent`` warning;
+        never put secrets in it. A header or cookie that is not allowed raises
+        :class:`~crawlbrulee.ValidationError`. See
+        https://crawlbrulee.com/docs/scrape/custom-headers-and-cookies.
         """
         body = async_scrape_body(
-            url, extract, cache, require_js, cleanup, proxy, location, webhook, zero_data_retention
+            url,
+            extract,
+            cache,
+            require_js,
+            cleanup,
+            proxy,
+            location,
+            webhook,
+            zero_data_retention,
+            headers=headers,
+            cookies=cookies,
         )
         data = self._transport.request("POST", "/api/scrape/async", body=body, timeout=timeout)
         return from_dict(AsyncScrapeResponse, data)

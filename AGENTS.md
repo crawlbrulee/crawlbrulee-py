@@ -16,6 +16,13 @@ was cloned on its own. It is also exposed locally as the `crawlbrulee-ecosystem`
 (`.agents/skills/crawlbrulee-ecosystem/`), which agents discovers via the
 `.claude/skills` symlink.
 
+## before a commit or release
+
+this repository is public, and it has its own maintainer skill. reading that skill is part of
+the pre-commit checks, and of every release. find it through the umbrella `crawlbrulee-ecosystem`
+skill (path above), which names the skill for each repository, then check the change against it
+before you run the tests. it may be absent if this repository was cloned on its own.
+
 ## releasing
 
 a release is a `vX.Y.Z` tag pushed on a commit that is already on `main`. the publish
