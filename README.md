@@ -289,26 +289,26 @@ can return html or an attribute, every match (`all=True`), or an object per matc
 from crawlbrulee import ScrapeElementSpec, ScrapeExtract
 
 page = client.scrape(
-    url="https://books.toscrape.com/",
+    url="https://shop.example.com/books/",
     extract=ScrapeExtract(
         elements={
             "heading": "h1",
             "books": ScrapeElementSpec(
-                selector="article.product_pod",
+                selector="article.book",
                 all=True,
                 fields={
                     "title": ScrapeElementSpec(
                         selector="h3 a", output="attribute", attribute="title"
                     ),
-                    "price": ".price_color",
+                    "price": ".price",
                 },
             ),
         }
     ),
 )
 print(page.elements)
-# {'heading': 'All products',
-#  'books': [{'title': 'A Light in the Attic', 'price': '£51.77'}, ...]}
+# {'heading': 'Books',
+#  'books': [{'title': 'The Night Garden', 'price': '€18.90'}, ...]}
 ```
 
 a name with no match is `None` (`[]` with `all=True`). a plain dict with the same keys

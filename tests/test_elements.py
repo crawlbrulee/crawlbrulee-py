@@ -13,11 +13,11 @@ from crawlbrulee._serde import from_dict
 BOOKS_REQUEST = {
     "heading": "h1",
     "books": {
-        "selector": "article.product_pod",
+        "selector": "article.book",
         "all": True,
         "fields": {
             "title": {"selector": "h3 a", "output": "attribute", "attribute": "title"},
-            "price": ".price_color",
+            "price": ".price",
             "url": {"selector": "h3 a", "output": "attribute", "attribute": "href"},
         },
     },
@@ -25,25 +25,25 @@ BOOKS_REQUEST = {
 }
 
 BOOKS_ELEMENTS = {
-    "heading": "All products",
+    "heading": "Books",
     "books": [
         {
-            "title": "A Light in the Attic",
-            "price": "£51.77",
-            "url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+            "title": "The Night Garden",
+            "price": "€18.90",
+            "url": "https://shop.example.com/books/the-night-garden",
         },
         {
-            "title": "Tipping the Velvet",
-            "price": "£53.74",
-            "url": "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
+            "title": "Salt and Stone",
+            "price": "€22.50",
+            "url": "https://shop.example.com/books/salt-and-stone",
         },
     ],
-    "next_page": "https://books.toscrape.com/catalogue/page-2.html",
+    "next_page": "https://shop.example.com/books/?page=2",
 }
 
 PAGE = {
-    "url": "https://books.toscrape.com/",
-    "requested_url": "https://books.toscrape.com/",
+    "url": "https://shop.example.com/books/",
+    "requested_url": "https://shop.example.com/books/",
     "elements": BOOKS_ELEMENTS,
 }
 
@@ -53,13 +53,13 @@ def _books_extract() -> ScrapeExtract:
         elements={
             "heading": "h1",
             "books": ScrapeElementSpec(
-                selector="article.product_pod",
+                selector="article.book",
                 all=True,
                 fields={
                     "title": ScrapeElementSpec(
                         selector="h3 a", output="attribute", attribute="title"
                     ),
-                    "price": ".price_color",
+                    "price": ".price",
                     "url": ScrapeElementSpec(selector="h3 a", output="attribute", attribute="href"),
                 },
             ),
@@ -84,7 +84,7 @@ def _capture(seen: list[dict], payload: object):
 def test_dataclass_elements_are_sent_as_the_wire_shape() -> None:
     seen: list[dict] = []
     client = make_sync(_capture(seen, PAGE))
-    client.scrape(url="https://books.toscrape.com/", extract=_books_extract())
+    client.scrape(url="https://shop.example.com/books/", extract=_books_extract())
 
     # Unset options (output, attribute, all) are left out, so the server defaults apply.
     assert seen[0]["extract"] == {"elements": BOOKS_REQUEST}
@@ -93,7 +93,7 @@ def test_dataclass_elements_are_sent_as_the_wire_shape() -> None:
 def test_plain_dict_elements_pass_through() -> None:
     seen: list[dict] = []
     client = make_sync(_capture(seen, PAGE))
-    client.scrape(url="https://books.toscrape.com/", extract={"elements": BOOKS_REQUEST})
+    client.scrape(url="https://shop.example.com/books/", extract={"elements": BOOKS_REQUEST})
 
     assert seen[0]["extract"] == {"elements": BOOKS_REQUEST}
 
@@ -138,7 +138,7 @@ def test_plain_dict_specs_are_accepted_in_scrape_extract() -> None:
                     "all": True,
                     "fields": {
                         "title": {"selector": "h3 a", "output": "attribute", "attribute": "title"},
-                        "price": ".price_color",
+                        "price": ".price",
                     },
                 }
             }
@@ -152,7 +152,7 @@ def test_plain_dict_specs_are_accepted_in_scrape_extract() -> None:
             "all": True,
             "fields": {
                 "title": {"selector": "h3 a", "output": "attribute", "attribute": "title"},
-                "price": ".price_color",
+                "price": ".price",
             },
         }
     }
@@ -161,14 +161,14 @@ def test_plain_dict_specs_are_accepted_in_scrape_extract() -> None:
 def test_a_mapping_that_is_not_a_dict_is_sent_as_an_object() -> None:
     seen: list[dict] = []
     client = make_sync(_capture(seen, PAGE))
-    fields = MappingProxyType({"price": ".price_color"})
+    fields = MappingProxyType({"price": ".price"})
     elements = MappingProxyType(
         {"books": ScrapeElementSpec(selector="article", all=True, fields=fields)}
     )
     client.scrape(url="https://example.com", extract=ScrapeExtract(elements=elements))
 
     assert seen[0]["extract"]["elements"] == {
-        "books": {"selector": "article", "all": True, "fields": {"price": ".price_color"}}
+        "books": {"selector": "article", "all": True, "fields": {"price": ".price"}}
     }
 
 
@@ -229,7 +229,7 @@ def test_all_false_is_sent_as_given() -> None:
 def test_async_job_sends_elements() -> None:
     seen: list[dict] = []
     client = make_sync(_capture(seen, {"job_id": "j1"}))
-    client.scrape_async(url="https://books.toscrape.com/", extract=_books_extract())
+    client.scrape_async(url="https://shop.example.com/books/", extract=_books_extract())
 
     assert seen[0]["extract"] == {"elements": BOOKS_REQUEST}
 
@@ -238,8 +238,8 @@ async def test_async_client_sends_elements() -> None:
     seen: list[dict] = []
     # One stub reply that serves as both a page and a job receipt.
     async with make_async(_capture(seen, {**PAGE, "job_id": "j1"})) as client:
-        await client.scrape(url="https://books.toscrape.com/", extract=_books_extract())
-        await client.scrape_async(url="https://books.toscrape.com/", extract=_books_extract())
+        await client.scrape(url="https://shop.example.com/books/", extract=_books_extract())
+        await client.scrape_async(url="https://shop.example.com/books/", extract=_books_extract())
 
     assert len(seen) == 2
     for body in seen:
@@ -251,16 +251,16 @@ async def test_async_client_sends_elements() -> None:
 
 def test_scrape_returns_elements_by_name() -> None:
     client = make_sync(_capture([], PAGE))
-    page = client.scrape(url="https://books.toscrape.com/", extract=_books_extract())
+    page = client.scrape(url="https://shop.example.com/books/", extract=_books_extract())
 
     assert page.elements == BOOKS_ELEMENTS
     assert page.elements is not None
-    assert page.elements["heading"] == "All products"
+    assert page.elements["heading"] == "Books"
     books = page.elements["books"]
     assert isinstance(books, list)
     first = books[0]
     assert isinstance(first, dict)
-    assert first["price"] == "£51.77"
+    assert first["price"] == "€18.90"
 
 
 def test_elements_keep_nulls_empty_lists_and_nested_objects() -> None:

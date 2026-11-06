@@ -12,6 +12,10 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
 - **`custom_user_agent`** in `ScrapeWarningCode`: the request set its own `User-Agent` header; this can lower the success rate.
 - **`:scope` in `fields`.** the docs for `fields` say that the selector `:scope` reads the match itself, for example the matched element's own `href`. a field without it is still read inside the match only.
 
+### changed
+
+- **docs only.** the readme examples use a made-up shop (`shop.example.com`), instead of a scraping sandbox run by another company.
+
 ## 1.3.1 (2026-10-09)
 
 ### changed
