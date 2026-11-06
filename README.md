@@ -283,7 +283,7 @@ when a bot check blocked us. see [errors](#errors).
 `extract.elements` reads named values from the page by CSS selector. each name is yours to
 pick. a plain selector string returns the text of the first match. a `ScrapeElementSpec`
 can return html or an attribute, every match (`all=True`), or an object per match
-(`fields`, read inside that match). it costs no extra credits.
+(`fields`, read inside that match; `:scope` reads the match itself). it costs no extra credits.
 
 ```python
 from crawlbrulee import ScrapeElementSpec, ScrapeExtract

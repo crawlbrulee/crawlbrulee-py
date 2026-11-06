@@ -39,8 +39,9 @@ class ScrapeElementSpec:
     #: ``True`` returns every match as a list instead of the first. Default ``False``.
     all: bool | None = None
     #: Used instead of ``output``: turns each match into an object. Each field is
-    #: a name and a selector (or spec) read inside that match only. Fields nest
-    #: up to 3 levels; the innermost level has no ``fields``.
+    #: a name and a selector (or spec) read inside that match; the selector
+    #: ``:scope`` reads the match itself, for example the matched element's own
+    #: ``href``. Fields nest up to 3 levels; the innermost level has no ``fields``.
     fields: Mapping[str, ScrapeElementSelector] | None = None
 
 

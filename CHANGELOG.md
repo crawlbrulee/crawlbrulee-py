@@ -10,6 +10,7 @@ this project follows [Semantic Versioning](https://semver.org). while on `0.x`, 
 
 - **`headers` and `cookies`** on `scrape` and `scrape_async` (sync and async client): send your own http headers and cookies to the site, for example an `Authorization` header or a fixed `User-Agent` that a site has on its allowlist. `headers` is any `Mapping[str, str]`. `cookies` is a list of `ScrapeCookie` or the same cookie as a plain dict (`ScrapeCookieDict`), typed as `ScrapeCookies`. headers go only to the origin of `url` (or its https version, for an http url), and cookies only to its host. a request with either never reads from or writes to the cache. see [headers and cookies](https://crawlbrulee.com/docs/scrape/custom-headers-and-cookies).
 - **`custom_user_agent`** in `ScrapeWarningCode`: the request set its own `User-Agent` header; this can lower the success rate.
+- **`:scope` in `fields`.** the docs for `fields` say that the selector `:scope` reads the match itself, for example the matched element's own `href`. a field without it is still read inside the match only.
 
 ## 1.3.1 (2026-10-09)
 
