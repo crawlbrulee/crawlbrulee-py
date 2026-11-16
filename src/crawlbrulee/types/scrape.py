@@ -75,7 +75,8 @@ ScrapeElements: TypeAlias = Mapping[str, ScrapeElementSelector]
 @dataclass
 class ScrapeExtract:
     """Which content formats to extract. The default request extracts
-    ``metadata + cleaned_html``.
+    ``markdown + metadata``. Naming other formats keeps these two on; set
+    ``markdown=False`` or ``metadata=False`` to turn one off.
 
     ``extract`` only selects what is returned. Changing it does not change
     whether a request is served from cache.
@@ -84,9 +85,9 @@ class ScrapeExtract:
     #: Extract page metadata (title, description, OG/Twitter tags). Default ``True``.
     metadata: bool | None = None
     #: Extract cleaned HTML: the page body with scripts, styles, ads and cookie banners
-    #: removed. Default ``True``.
+    #: removed. Default ``False``.
     cleaned_html: bool | None = None
-    #: Extract the page as clean Markdown. Default ``False``.
+    #: Extract the page as clean Markdown. Default ``True``.
     markdown: bool | None = None
     #: Return the raw, unprocessed HTML. Default ``False``. The serialized body
     #: HTML is capped at 10 000 000 characters per page; a longer document is
@@ -416,7 +417,7 @@ class ScrapeResponse:
     #: Requested extract fields that aren't supported for this content type
     #: (``"elements"`` when the page is JSON, plain text, XML or markdown, not HTML).
     unsupported_fields: list[str] | None = None
-    #: Page content as clean Markdown (when ``extract.markdown``).
+    #: Page content as clean Markdown (when ``extract.markdown``, on by default).
     markdown: str | None = None
     #: Cleaned HTML of the main page content (when ``extract.cleaned_html``).
     cleaned_html: str | None = None
@@ -429,7 +430,9 @@ class ScrapeResponse:
     #: Captured screenshot (when ``extract.screenshot``). In rare cases a screenshot
     #: can't be captured; when you also requested other outputs, those still arrive
     #: and this is simply left out, so it reads back as ``None``. A screenshot-**only**
-    #: request that can't deliver fails instead -- 422 ``unsupported_screenshot_output``
+    #: request (every other format off: ``markdown=False`` and ``metadata=False``, and
+    #: no ``cleaned_html``, ``raw_html``, ``links``, ``images`` or ``elements``) that
+    #: can't deliver fails instead -- 422 ``unsupported_screenshot_output``
     #: when the content type can't be screenshotted, 500 on a capture failure -- and
     #: isn't billed.
     screenshot: ScreenshotResult | None = None
