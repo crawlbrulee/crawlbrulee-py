@@ -95,6 +95,21 @@ def test_unsupported_screenshot_output_maps_to_validation_error() -> None:
     assert err.status == 422
 
 
+def test_unsupported_pdf_output_maps_to_validation_error() -> None:
+    # 422: a pdf was the only requested output, but the content type can't be
+    # made into one. The pdf twin of unsupported_screenshot_output, same class.
+    err = create_api_error(
+        {
+            "name": "unsupported_pdf_output",
+            "message": "This content type cannot be saved as a PDF.",
+        },
+        422,
+    )
+    assert isinstance(err, ValidationError)
+    assert err.error_name == "unsupported_pdf_output"
+    assert err.status == 422
+
+
 def test_service_unavailable_maps_by_name() -> None:
     # 503: infra failure during the token lookup. Must NOT read as an auth error.
     err = create_api_error(

@@ -179,11 +179,19 @@ def map_body(
     limit: int | None,
     location: Any,
     zero_data_retention: bool | None = None,
+    *,
+    sitemap_url: str | None = None,
+    depth: int | None = None,
+    entries: str | None = None,
+    modified_since: str | None = None,
+    max_results: int | None = None,
 ) -> dict[str, Any]:
     """Build the JSON body for ``/api/map``.
 
     ``None`` fields are dropped, so the server's defaults apply -- notably
-    ``max_urls`` (5000) and ``limit`` (5000). The SDK never substitutes its own.
+    ``max_results`` (5000), ``limit`` (5000) and ``depth`` (3). The SDK never
+    substitutes its own, and it does not check ``depth`` against a maximum:
+    the api answers a value it does not accept.
     """
     return _build_body(
         {
@@ -192,6 +200,11 @@ def map_body(
             "sitemap_only": sitemap_only,
             "types": to_dict(types),
             "cache": to_dict(cache),
+            "sitemap_url": sitemap_url,
+            "depth": depth,
+            "entries": entries,
+            "modified_since": modified_since,
+            "max_results": max_results,
             "max_urls": max_urls,
             "page": page,
             "limit": limit,

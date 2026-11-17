@@ -72,6 +72,63 @@ ScrapeElementSelector: TypeAlias = str | ScrapeElementSpec | ScrapeElementSpecDi
 ScrapeElements: TypeAlias = Mapping[str, ScrapeElementSelector]
 
 
+#: How a PDF lays out the page: ``pages`` (the default), the page on sheets of
+#: paper, laid out as in the browser window and shrunk to fit the paper width;
+#: or ``single_page``, one page as wide as the browser window and as tall as the
+#: web page, up to 15 000 px.
+PdfLayout = Literal["pages", "single_page"]
+
+#: Paper size for a PDF with ``layout="pages"``.
+PdfPaper = Literal["a4", "letter"]
+
+#: Which style of the site a PDF shows: ``screen`` (the default), the page as it
+#: looks on screen, or ``print``, the site's own print style.
+PdfMedia = Literal["screen", "print"]
+
+
+@dataclass
+class PdfRequest:
+    """PDF settings. Pass this on ``extract.pdf``; ``PdfRequest()`` takes every
+    default.
+
+    The PDF is a real document with selectable text and working links,
+    backgrounds printed, and no header or footer added. The request runs in a
+    browser. It costs what a screenshot costs, and a PDF and a screenshot in one
+    request are billed once. When the PDF can't be made (it would be over 50 MB,
+    it takes too long, or the page could not be loaded), the rest of the scrape
+    still comes back with the ``pdf_unavailable`` warning, and the request costs
+    what it costs without the PDF.
+
+    A cached copy of the page answers only when it has a PDF made with the same
+    settings, in the same browser window (the screenshot's ``device_mode``,
+    ``viewport`` and ``color_scheme``, when the request also asks for a
+    screenshot). ``cache.max_age=0`` always makes a new one.
+
+    A PDF on its own is made with the light theme: the PDF has no color setting
+    of its own.
+    When the same request also asks for a screenshot with
+    ``color_scheme="dark"``, the PDF is dark too.
+    """
+
+    #: ``pages`` (default): the page on sheets of paper, laid out as in the
+    #: browser window (the desktop default, or the screenshot's device and
+    #: viewport when the request also asks for one) and shrunk to fit the paper
+    #: width. ``single_page``: one page as wide as the browser window and as tall
+    #: as the web page, up to 15 000 px; a taller page goes on over more pages,
+    #: with the ``pdf_single_page_overflow`` warning.
+    layout: PdfLayout | None = None
+    #: Paper size for ``layout="pages"``. Defaults to ``a4``. Not allowed with
+    #: ``single_page``.
+    paper: PdfPaper | None = None
+    #: Turn the paper sideways, for ``layout="pages"``. Defaults to ``False``.
+    #: Not allowed with ``single_page``.
+    landscape: bool | None = None
+    #: ``screen`` (default): the page as it looks on screen. ``print``: the
+    #: site's own print style, which on many sites hides menus and images; a site
+    #: without one looks as on screen.
+    media: PdfMedia | None = None
+
+
 @dataclass
 class ScrapeExtract:
     """Which content formats to extract. The default request extracts
@@ -79,7 +136,9 @@ class ScrapeExtract:
     ``markdown=False`` or ``metadata=False`` to turn one off.
 
     ``extract`` only selects what is returned. Changing it does not change
-    whether a request is served from cache.
+    whether a request is served from cache. The exceptions are ``screenshot``
+    and ``pdf``: a cached copy answers them only when it has a screenshot or
+    PDF made with the same settings.
     """
 
     #: Extract page metadata (title, description, OG/Twitter tags). Default ``True``.
@@ -112,6 +171,10 @@ class ScrapeExtract:
     #: values come back in :attr:`ScrapeResponse.elements` under the same names.
     #: No extra credits. See https://crawlbrulee.com/docs/scrape/targeted-extraction
     elements: ScrapeElements | None = None
+    #: Save the page as a PDF. Omit to skip; set a :class:`PdfRequest` to enable
+    #: (``PdfRequest()`` takes every default). The PDF comes back on
+    #: :attr:`ScrapeResponse.pdf`.
+    pdf: PdfRequest | None = None
 
 
 @dataclass
@@ -144,7 +207,9 @@ class ScrapeCache:
     or ``cookies`` never reads from or writes to the cache. Requests with different
     ``cleanup.exclude_selectors`` don't share a cache entry. Changing
     ``extract`` (``elements`` too) does not change whether a request is served
-    from cache.
+    from cache, except for ``screenshot`` and ``pdf``: a cached copy answers them
+    only when it has a screenshot or PDF made with the same settings
+    (``color_scheme`` included).
     """
 
     #: Maximum cache age: a number of seconds (non-negative int) or an ISO-8601
@@ -279,6 +344,18 @@ class ScreenshotResult:
 
 
 @dataclass
+class PdfResult:
+    """Result block returned when a PDF was requested and could be made."""
+
+    #: Signed link to download the PDF. Expires 24 hours after the scrape (for an
+    #: async scrape, 24 hours after it was submitted; fetching the result again
+    #: does not extend it). Download the file; don't keep the link.
+    url: str
+    #: Size of the PDF file in bytes.
+    bytes: int
+
+
+@dataclass
 class PageInlineImage:
     """A single inline image discovered on the page."""
 
@@ -354,6 +431,8 @@ class ScrapeResponseMeta:
 #: - ``raw_html_truncated`` -- the serialized body HTML exceeded 10 000 000 characters.
 #: - ``elements_truncated`` -- at least one ``elements`` value hit a limit (see
 #:   https://crawlbrulee.com/docs/scrape/targeted-extraction).
+#: - ``pdf_single_page_overflow`` -- a ``single_page`` PDF was taller than the
+#:   15 000 px page limit, so it goes on over more pages.
 #:
 #: Unavailability -- that section's extraction failed, so the field is omitted or
 #: empty while the rest of the scrape succeeded. These distinguish "the page had
@@ -364,6 +443,10 @@ class ScrapeResponseMeta:
 #: - ``metadata_unavailable`` -- metadata extraction failed.
 #: - ``screenshot_unavailable`` -- a screenshot was asked for, but the page came
 #:   back from the ``http`` engine without one.
+#: - ``pdf_unavailable`` -- a PDF was asked for, but the page came back without
+#:   one: it would have been over 50 MB, it did not finish in time, or the page
+#:   could not be loaded in a browser (the site answered an empty error page,
+#:   for example). The rest of the result is there.
 #:
 #: Request notices -- about what the request sent, not about the page:
 #:
@@ -386,10 +469,12 @@ ScrapeWarningCode = Literal[
     "raw_html_truncated",
     "metadata_truncated",
     "elements_truncated",
+    "pdf_single_page_overflow",
     "links_unavailable",
     "inline_images_unavailable",
     "metadata_unavailable",
     "screenshot_unavailable",
+    "pdf_unavailable",
     "custom_user_agent",
 ]
 
@@ -434,7 +519,13 @@ class ScrapeResponse:
     #: no ``cleaned_html``, ``raw_html``, ``links``, ``images`` or ``elements``) that
     #: can't deliver fails instead -- 422 ``unsupported_screenshot_output``
     #: when the content type can't be screenshotted, 500 on a capture failure -- and
-    #: isn't billed.
+    #: isn't billed. A request with only a screenshot and a PDF counts as
+    #: screenshot-only here.
+    #:
+    #: An async job like that ends ``failed`` and isn't billed either: reading
+    #: its result raises the same 422 (:class:`~crawlbrulee.ValidationError`)
+    #: when the content type can't be captured, or a 400 ``job_failed`` when no
+    #: capture could be made.
     screenshot: ScreenshotResult | None = None
     #: Extracted page metadata (when ``extract.metadata``, on by default).
     metadata: ScrapeMetadata | None = None
@@ -445,9 +536,9 @@ class ScrapeResponse:
     #: Request-level metadata: billing + routing usage for this request.
     response_meta: ScrapeResponseMeta | None = None
     #: Non-error notices about the scrape (stable codes -- safe to switch on):
-    #: an output was capped (``*_truncated``), could not be extracted
-    #: (``*_unavailable``), or the request set its own ``User-Agent``
-    #: (``custom_user_agent``) -- see :data:`ScrapeWarningCode`. Kept as
+    #: an output was capped (``*_truncated``, ``pdf_single_page_overflow``),
+    #: could not be extracted (``*_unavailable``), or the request set its own
+    #: ``User-Agent`` (``custom_user_agent``); see :data:`ScrapeWarningCode`. Kept as
     #: ``list[str]`` so a code added later still deserializes.
     #:
     #: Warnings are stored with the result, so cache hits and async result
@@ -463,3 +554,18 @@ class ScrapeResponse:
     #:
     #: ``None`` on an older api version that does not send it.
     page_status_code: int | None = None
+    #: The PDF of the page (when ``extract.pdf`` and it could be made). When it
+    #: can't be made, this is ``None`` and ``warnings`` carries
+    #: ``pdf_unavailable``, while the rest of the scrape comes back. Guard for
+    #: it (``page.pdf and page.pdf.url``). A PDF-only request (every other format
+    #: off: ``markdown=False`` and ``metadata=False``, and no ``cleaned_html``,
+    #: ``raw_html``, ``links``, ``images``, ``elements`` or screenshot) whose
+    #: content type can't be made into a PDF fails with a 422
+    #: ``unsupported_pdf_output`` (:class:`~crawlbrulee.ValidationError`) and
+    #: isn't billed; when no PDF could be made, it fails with a 500 and isn't
+    #: billed.
+    #:
+    #: An async job like that ends ``failed`` and isn't billed either: reading
+    #: its result raises the same 422 when the content type can't be made into
+    #: a PDF, or a 400 ``job_failed`` when no PDF could be made.
+    pdf: PdfResult | None = None

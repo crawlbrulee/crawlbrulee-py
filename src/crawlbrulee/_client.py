@@ -21,7 +21,7 @@ from ._util import (
 from .types.account import UsageResponse, WhoamiResponse
 from .types.async_ import AsyncJobStatusResponse, AsyncScrapeResponse
 from .types.common import ProxyTier
-from .types.map import MapCache, MapLocation, MapResponse, MapTypes
+from .types.map import MapCache, MapEntries, MapLocation, MapResponse, MapTypes
 from .types.scrape import (
     ScrapeCache,
     ScrapeCleanup,
@@ -327,6 +327,11 @@ class Crawlbrulee:
         sitemap_only: bool | None = None,
         types: MapTypes | dict[str, Any] | None = None,
         cache: MapCache | dict[str, Any] | None = None,
+        sitemap_url: str | None = None,
+        depth: int | None = None,
+        entries: MapEntries | None = None,
+        modified_since: str | None = None,
+        max_results: int | None = None,
         max_urls: int | None = None,
         page: int | None = None,
         limit: int | None = None,
@@ -334,20 +339,48 @@ class Crawlbrulee:
         zero_data_retention: bool | None = None,
         timeout: float | None = None,
     ) -> MapResponse:
-        """Build (or return a cached) site link-map for a domain.
+        """Build (or return a cached) link map of a site from its sitemaps, plus
+        the links on its home page. Every link has ``url``, ``type`` (``"page"``
+        or ``"sitemap"``) and ``lastmod``.
 
         Every knob is optional; anything left as ``None`` is not sent, so the
-        server's own default applies. ``max_urls`` defaults to 5000 (maximum
-        100000) and ``limit`` -- the page size -- defaults to 5000 (maximum
-        10000).
+        server's own default applies. A plain map reads the site's top sitemap
+        files and two levels of nested ones, and returns its pages.
 
-        ``max_urls`` is a crawl budget, not a slice taken at the end: sitemap
-        discovery stops as soon as that many URLs are found. So a map that hit
-        the budget comes back with exactly ``max_urls`` links and
-        ``response_meta.truncation.response_capped`` still ``False``; the signal
-        that the site has more is
-        ``response_meta.truncation.discovery_cap_reason == "max_urls"``. Ask
-        again with a higher ``max_urls`` to get them.
+        ``max_results`` defaults to 5000 (maximum 100000) and counts only the
+        kind asked for in ``entries``. It is a crawl budget, not a slice taken
+        at the end: discovery stops as soon as that many entries are found, and
+        ``response_meta.truncation.discovery_cap_reason == "max_results"`` says
+        the site has more. ``limit``, the page size, defaults to 5000
+        (maximum 10000).
+
+        ``sitemap_url`` starts from one sitemap file (on the same site as ``url``,
+        or on a host the site's robots.txt names, such as a CDN), so a very large
+        site can be mapped in several calls.
+        ``depth`` is how many levels of nested sitemaps to follow: 0 to 3,
+        default 3 (a higher value raises
+        :class:`~crawlbrulee.ValidationError`). With ``sitemap_url``, level 0 is
+        that file, and it is read; without it, ``depth=0`` lists the site's top
+        sitemap files without reading them. A sitemap index holds only sitemap
+        files, so reading one at a low ``depth`` with ``entries="pages"``
+        returns no pages. ``entries`` is ``"pages"`` (the default),
+        ``"sitemaps"`` or ``"all"``.
+        How to map a very large or deep site in several calls, step by step:
+        https://crawlbrulee.com/docs/map/sitemaps#map-a-very-large-or-deep-site-in-several-calls.
+
+        ``modified_since`` is a date such as ``"2026-11-01"`` (the start of
+        that day in UTC), or an ISO 8601 date and time with a zone. Only
+        entries whose ``lastmod`` is at or after it come back; an entry with no
+        ``lastmod`` is left out. Such a request is always mapped fresh: it never
+        reads from or adds to the cache, and each call is priced as a fresh map.
+
+        ``max_urls`` is deprecated: use ``max_results``, which means the same.
+        When both are sent, only ``max_results`` is used. The api removes
+        ``max_urls`` on 2027-02-01.
+
+        When the site answers ``429`` for the file in ``sitemap_url``, for its
+        robots.txt or for one of its top sitemap files, the map
+        raises :class:`~crawlbrulee.RateLimitError` and is not billed.
 
         ``zero_data_retention=True`` keeps the result out of the shared cache;
         anything stored to deliver it is kept for 24 hours, then deleted. Adds 1
@@ -366,6 +399,11 @@ class Crawlbrulee:
             limit,
             location,
             zero_data_retention,
+            sitemap_url=sitemap_url,
+            depth=depth,
+            entries=entries,
+            modified_since=modified_since,
+            max_results=max_results,
         )
         data = self._transport.request("POST", "/api/map", body=body, timeout=timeout)
         return from_dict(MapResponse, data)

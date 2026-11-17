@@ -7,7 +7,7 @@ from typing import Literal, TypedDict, cast
 
 #: Proxy tier used to route the fetch.
 #:
-#: - ``basic`` -- datacenter proxy, lowest cost.
+#: - ``basic`` -- basic proxy, lowest cost.
 #: - ``advanced`` -- enhanced proxy tier with a higher success rate.
 #: - ``auto`` -- tries the basic tier first and escalates to advanced on failure;
 #:   billed at the delivered tier (default).
@@ -28,6 +28,10 @@ ScreenshotType = Literal["viewport", "full_page"]
 
 #: Emulated device class for the viewport (drives default width/height).
 ScreenshotDeviceMode = Literal["desktop", "mobile"]
+
+#: Which theme to ask the site for: ``light`` (the default) or ``dark``. See
+#: :attr:`ScreenshotRequest.color_scheme`.
+ScreenshotColorScheme = Literal["light", "dark"]
 
 
 @dataclass
@@ -95,6 +99,12 @@ class ScreenshotRequest:
     actions_before: list[ScreenshotWaitAction | ScreenshotScrollAction] | None = None
     #: Post-capture actions (e.g. slice into tiles). Maximum 1 entry.
     actions_after: list[ScreenshotSliceAction] | None = None
+    #: ``light`` (the default) or ``dark``. ``dark`` asks the site for its dark
+    #: theme, if it has one, and the screenshot shows it. A site without a dark
+    #: theme, or whose dark theme is only a switch on the page, looks the same
+    #: as with ``light``. When the request also asks for ``extract.pdf``, the PDF
+    #: shows the dark theme too. No extra credits.
+    color_scheme: ScreenshotColorScheme | None = None
 
 
 def _require(obj: object, *names: str) -> None:
@@ -215,6 +225,7 @@ ApiErrorName = Literal[
     "too_many_requests",
     "unsupported_content",
     "unsupported_screenshot_output",
+    "unsupported_pdf_output",
     "validation_error",
     "antibot_blocked",
     "too_many_redirects",

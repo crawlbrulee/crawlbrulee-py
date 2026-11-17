@@ -145,6 +145,7 @@ def test_from_dict_fills_defaults_for_fields_an_older_server_omits() -> None:
         },
     )
     assert truncation.response_capped is True
+    assert truncation.total_before_max_results == 12
     assert truncation.discovery_capped is False
     assert truncation.sitemaps_skipped == 0
     assert truncation.discovery_cap_reason is None

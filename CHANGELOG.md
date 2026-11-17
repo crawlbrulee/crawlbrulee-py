@@ -4,12 +4,30 @@ all notable changes to the `crawlbrulee` python sdk are documented here.
 
 this project follows [Semantic Versioning](https://semver.org). while on `0.x`, minor versions may include breaking changes.
 
-## 1.4.1 (unreleased)
+## 1.5.0 (2026-11-18)
+
+### added
+
+- **`extract.pdf`** on `scrape` and `scrape_async` (sync and async client): save the page as a pdf, with selectable text and working links. new request type `PdfRequest` (`layout`, `paper`, `landscape`, `media`, typed as `PdfLayout`, `PdfPaper` and `PdfMedia`); `PdfRequest()` takes every default. the pdf comes back on the new `ScrapeResponse.pdf` (`PdfResult`: a signed `url` that expires 24 hours after the scrape, and its size in `bytes`). it costs what a screenshot costs, and a pdf and a screenshot in one request are billed once.
+- **`pdf_unavailable`** and **`pdf_single_page_overflow`** in `ScrapeWarningCode`: a pdf was asked for but could not be made (the rest of the scrape still comes back), or a `single_page` pdf was taller than 15 000 px and goes on over more pages.
+- **`unsupported_pdf_output`** in `ApiErrorName`: a pdf-only request for a content type that can't be made into a pdf (`422`, not billed). it raises `ValidationError`, like `unsupported_screenshot_output`.
+- **`ScreenshotRequest.color_scheme`**: `"light"` (the default) or `"dark"`, typed as `ScreenshotColorScheme`. `dark` asks the site for its dark theme; a pdf in the same request shows it too. no extra credits.
+- **map: `sitemap_url`, `depth`, `entries`, `modified_since` and `max_results`** on `map` (sync and async client). `sitemap_url` starts from one sitemap file, so a very large site can be mapped in several calls; `depth` sets how many levels of nested sitemaps to follow (`0` to `3`, default `3`); `entries` picks what comes back (`MapEntries`: `"pages"`, the default, `"sitemaps"` or `"all"`); `modified_since` returns only entries whose `lastmod` is at or after a date and time; `max_results` is the new name of `max_urls`. see [map](https://crawlbrulee.com/docs/map).
+- **map links carry `type` and `lastmod`.** every `MapLinkItem` now has `url`, `type` (`MapLinkType`: `"page"` or `"sitemap"`) and `lastmod` (a UTC date and time, or `None`). against an older api, `type` reads as `"page"`.
+- **`MapTruncation.total_before_max_results`** and **`MapTruncation.unread_sitemaps`**: the sitemap files a map knew about but did not read whole, so a next call can read them with `sitemap_url`, except a file that says it is over the size limit: no call reads that one (`[]` on an older api version). each total fills in the other, so both read right when the api sends only one.
 
 ### changed
 
 - **docs only.** the `ScrapeExtract` docstrings give the api's new default: a scrape with no `extract`, or with flags left out, returns `markdown` + `metadata`, not `cleaned_html` + `metadata`. naming other formats keeps the two defaults on; set `markdown=False` or `metadata=False` to turn one off.
 - **docs only.** the `screenshot` docstring says what a screenshot-only request is: every other format off, `markdown` and `metadata` included, and no `elements`.
+- **`DiscoveryCapReason`**: `"max_urls"` became `"max_results"`, the value the api now sends.
+- **`MapTruncation.total_before_max_urls` and `total_detected_before_storage_cap` have defaults** (`0`), so a response without them still parses. their place in the field order is unchanged.
+- **docs only.** the `screenshot` and `pdf` docstrings and the readme say what happens to an async job that asked only for a screenshot or a pdf and got none: it ends `failed` and is not billed, and reading its result raises `ValidationError` (`422`) for a content type that can't be captured, or `job_failed` (`400`) otherwise.
+
+### deprecated
+
+- **`map(max_urls=...)`**: use `max_results`, which means the same. when both are sent, only `max_results` is used. the api removes `max_urls` on 2027-02-01.
+- **`MapTruncation.total_before_max_urls`**: use `total_before_max_results`, which always has the same value. the api removes it on 2027-02-01.
 
 ## 1.4.0 (2026-11-06)
 

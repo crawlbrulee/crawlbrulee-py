@@ -296,6 +296,7 @@ def create_api_error(body: dict[str, Any], status: int) -> CrawlbruleeError:
         "blocked_url",
         "unsupported_content",
         "unsupported_screenshot_output",
+        "unsupported_pdf_output",
     ):
         return ValidationError(message, status=status, error_name=name, response=body)
 

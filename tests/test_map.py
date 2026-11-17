@@ -17,7 +17,14 @@ def test_map_posts_body_and_parses_meta() -> None:
         captured["body"] = request_json(request)
         return json_response(
             {
-                "links": [{"url": "https://example.com/a"}, {"url": "https://example.com/b"}],
+                "links": [
+                    {"url": "https://example.com/a", "type": "page", "lastmod": None},
+                    {
+                        "url": "https://example.com/b",
+                        "type": "page",
+                        "lastmod": "2026-11-10T08:30:00.000Z",
+                    },
+                ],
                 "response_meta": {
                     "usage": {
                         "total_credit_cost": 1,
@@ -34,9 +41,11 @@ def test_map_posts_body_and_parses_meta() -> None:
                     "truncation": {
                         "storage_capped": False,
                         "response_capped": False,
+                        "total_before_max_results": 2,
                         "total_before_max_urls": 2,
                         "total_detected_before_storage_cap": 2,
                         "discovery_capped": False,
+                        "unread_sitemaps": [],
                         "sitemaps_skipped": 0,
                         "discovery_cap_reason": None,
                     },
@@ -49,7 +58,7 @@ def test_map_posts_body_and_parses_meta() -> None:
         url="https://example.com",
         sitemap_only=False,
         types=MapTypes(internal=True, external=False),
-        max_urls=5000,
+        max_results=5000,
         page=1,
     )
 
@@ -58,11 +67,14 @@ def test_map_posts_body_and_parses_meta() -> None:
         "url": "https://example.com",
         "sitemap_only": False,
         "types": {"internal": True, "external": False},
-        "max_urls": 5000,
+        "max_results": 5000,
         "page": 1,
     }
     assert len(result.links) == 2
     assert result.links[0].url == "https://example.com/a"
+    assert result.links[0].type == "page"
+    assert result.links[0].lastmod is None
+    assert result.links[1].lastmod == "2026-11-10T08:30:00.000Z"
     assert result.response_meta.usage.total_credit_cost == 1
     assert result.response_meta.usage.engine == "http"
     assert result.response_meta.usage.proxy == "basic"
@@ -74,12 +86,14 @@ def test_map_posts_body_and_parses_meta() -> None:
     assert truncation.discovery_capped is False
     assert truncation.sitemaps_skipped == 0
     assert truncation.discovery_cap_reason is None
+    assert truncation.total_before_max_results == 2
+    assert truncation.unread_sitemaps == []
 
 
 def _map_payload(links: list[str], truncation: dict) -> dict:
     """A map response body with ``truncation`` merged over sane defaults."""
     return {
-        "links": [{"url": u} for u in links],
+        "links": [{"url": u, "type": "page", "lastmod": None} for u in links],
         "response_meta": {
             "usage": {"total_credit_cost": 1, "engine": "http", "proxy": "basic"},
             "pagination": {
@@ -92,6 +106,7 @@ def _map_payload(links: list[str], truncation: dict) -> dict:
             "truncation": {
                 "storage_capped": False,
                 "response_capped": False,
+                "total_before_max_results": len(links),
                 "total_before_max_urls": len(links),
                 "total_detected_before_storage_cap": len(links),
                 **truncation,
@@ -101,7 +116,7 @@ def _map_payload(links: list[str], truncation: dict) -> dict:
 
 
 def test_map_sends_no_defaults_of_its_own() -> None:
-    # max_urls and limit are the server's call (5000 each). The SDK must send
+    # max_results, limit and depth are the server's call. The SDK must send
     # only what the caller passed, so a server-side default change needs no
     # SDK release.
     captured: dict = {}
@@ -115,8 +130,8 @@ def test_map_sends_no_defaults_of_its_own() -> None:
     assert captured["body"] == {"url": "https://example.com"}
 
 
-def test_map_reports_discovery_stopped_at_max_urls() -> None:
-    # Discovery stops at the caller's max_urls, so the list is exactly that long
+def test_map_reports_discovery_stopped_at_max_results() -> None:
+    # Discovery stops at the caller's max_results, so the list is exactly that long
     # while response_capped stays False -- discovery_cap_reason is the only
     # signal that the site has more pages.
     def handler(request: httpx.Request) -> httpx.Response:
@@ -127,19 +142,19 @@ def test_map_reports_discovery_stopped_at_max_urls() -> None:
                     "response_capped": False,
                     "discovery_capped": True,
                     "sitemaps_skipped": 4,
-                    "discovery_cap_reason": "max_urls",
+                    "discovery_cap_reason": "max_results",
                 },
             )
         )
 
-    result = make_sync(handler).map(url="https://example.com", max_urls=3)
+    result = make_sync(handler).map(url="https://example.com", max_results=3)
 
     truncation = result.response_meta.truncation
     assert len(result.links) == 3
     assert truncation.response_capped is False
     assert truncation.discovery_capped is True
     assert truncation.sitemaps_skipped == 4
-    assert truncation.discovery_cap_reason == "max_urls"
+    assert truncation.discovery_cap_reason == "max_results"
 
 
 def test_map_reports_discovery_stopped_on_unread_files() -> None:
@@ -170,8 +185,9 @@ def test_map_reports_discovery_stopped_on_unread_files() -> None:
 
 def test_map_truncation_defaults_when_server_omits_new_fields() -> None:
     # An older server predates discovery_capped / sitemaps_skipped /
-    # discovery_cap_reason. Their absence must read as "nothing was cut short",
-    # not raise.
+    # discovery_cap_reason / total_before_max_results / unread_sitemaps, and
+    # sends links as just {url}. Their absence must read as "nothing was cut
+    # short", not raise.
     def handler(request: httpx.Request) -> httpx.Response:
         return json_response(
             {
@@ -195,14 +211,20 @@ def test_map_truncation_defaults_when_server_omits_new_fields() -> None:
             }
         )
 
-    truncation = make_sync(handler).map(url="https://example.com").response_meta.truncation
+    result = make_sync(handler).map(url="https://example.com")
+    truncation = result.response_meta.truncation
 
     assert truncation.discovery_capped is False
     assert truncation.sitemaps_skipped == 0
     assert truncation.discovery_cap_reason is None
+    assert truncation.unread_sitemaps == []
+    # the new total is filled from the old one, which always held the same value
+    assert truncation.total_before_max_results == 1
+    assert result.links[0].type == "page"
+    assert result.links[0].lastmod is None
 
 
-def test_map_link_item_carries_only_url() -> None:
+def test_map_link_item_ignores_unknown_keys() -> None:
     # An unknown key must be ignored rather than break parsing.
     def handler(request: httpx.Request) -> httpx.Response:
         payload = _map_payload(["https://example.com/a"], {})
