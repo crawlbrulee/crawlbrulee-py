@@ -127,9 +127,11 @@ defaults apply.
 
 **notes:**
 
-- **`proxy` defaults to `auto`** when omitted — it starts at the basic tier and
-  escalates to advanced on failure, billed at the delivered tier. pass `"basic"`
-  or `"advanced"` to pin a tier. see
+- **`proxy` defaults to `auto`** when omitted. we start with the lightest way to
+  get the page and step up our effort on our own when a site needs more: a
+  stronger proxy, a real browser, or both. billed at the delivered tier. pass
+  `"basic"` or `"advanced"` to pin a tier. `require_js=True` goes straight to a
+  browser; without it, a page that needs one still gets one. see
   [proxies & location](https://crawlbrulee.com/docs/proxies) for what each tier does.
 - **screenshots.** in rare cases a screenshot can't be captured; when you also requested
   other outputs, those still arrive and the screenshot is simply left out, so
@@ -285,7 +287,7 @@ if page.page_status_code and page.page_status_code >= 400:
 ```
 
 billing follows `page_status_code`: `2xx` and `4xx` pages are billed, except `403`, `407`,
-`408`, `429` and `451`. `5xx` pages are never billed. a page that is not billed has every
+`408`, `429`, `444` and `451`. `5xx` pages are never billed. a page that is not billed has every
 cost part at `0`. errors (below) are never billed.
 
 the sdk raises when we could not return the page — for example
@@ -453,7 +455,7 @@ result = client.map(
     limit=1_000,
 )
 for link in result.links:
-    print(link.url, link.type, link.lastmod)  # "page" or "sitemap"; lastmod: UTC, or None
+    print(link.url, link.type, link.lastmod)  # "page", "sitemap" or "sitemap_index"; lastmod: UTC, or None
 print(result.response_meta.pagination.total_pages, "pages of results")
 usage = result.response_meta.usage
 print(usage.total_credit_cost, "credits", "(cache hit)" if usage.engine == "cache" else "")
@@ -465,23 +467,35 @@ never sends one of its own.
 - `max_results`: the most entries the map finds, default **5000** (maximum 100000). it
   counts only the kind you ask for in `entries`.
 - `limit`: the page size, default **5000** (maximum 10000).
-- `entries`: `"pages"` (the default), `"sitemaps"` (sitemap files) or `"all"` (both).
+- `entries`: `"pages"` (the default), `"sitemaps"` (sitemap files, of type `"sitemap"` or
+  `"sitemap_index"`) or `"all"` (both).
 - `sitemap_url`: start from this sitemap file instead of the site's own top sitemap
   files. it must be on the same site as `url`, or on a host the site's robots.txt
   names, such as a CDN.
 - `depth`: how many levels of nested sitemaps to follow: `0` to `3`, default `3`. the sdk
-  passes the number through; a higher value raises `ValidationError`.
+  passes the number through; a higher value raises `ValidationError`. `depth=1` with
+  `entries="sitemaps"` lists the site's top sitemap files and every file they list, in one
+  call. to go deeper, read a listed file with `sitemap_url`, or ask with a higher depth.
 - `modified_since`: a date such as `"2026-11-01"` (the start of that day in UTC), or an
   ISO 8601 date and time with a zone, such as `"2026-11-01T08:00:00+01:00"`. only entries whose `lastmod` is at or after it come back, so
-  an entry with no `lastmod` is left out. such a map is always fresh, so `cache.max_age`
-  does nothing. see
+  an entry with no `lastmod` is left out. every sitemap file is read whatever its own
+  `lastmod`, and each entry returned, a page or a sitemap file, is judged by its own
+  `lastmod`: with `entries="sitemaps"`, a file comes back when its own `lastmod` matches,
+  not when a page in it does, so ask with `entries="pages"` to find the pages that changed.
+  such a map is always fresh, so `cache.max_age` does nothing. see
   [find what changed since a date](https://crawlbrulee.com/docs/map/sitemaps#find-what-changed-since-a-date).
 - `max_urls` and `truncation.total_before_max_urls` are the old names of `max_results` and
   `truncation.total_before_max_results`. they still work and always match the new ones,
   and the api removes them on 2027-02-01. when you send both, only `max_results` is used.
 
-every link has `url`, `type` and `lastmod`. `type` is `"page"` or `"sitemap"`; a sitemap
-link is a file you can read with `sitemap_url` in another call (on another site, only when the site's robots.txt names its host). a link found on the home
+every link has `url`, `type` and `lastmod`. `type` is `"page"`, `"sitemap"` or
+`"sitemap_index"`. a `"sitemap_index"` is a sitemap file that this map found to be a
+sitemap index (a file that lists other sitemap files), whether it read all of it, part of
+it, or only its start; it can also be in `unread_sitemaps` when the map did not read all
+of it. any other sitemap file is a `"sitemap"`: one that lists pages, or one whose kind the
+map did not learn (past `depth`, or it could not be read). you can read either kind with
+`sitemap_url` in another call (on another site, only when the site's robots.txt names its
+host). a link found on the home
 page is a `"page"` with `lastmod` `None`. the site root is listed only when a sitemap lists
 it. a map with `modified_since` or `sitemap_url` never adds home page links. returned
 urls are normalized, matching the `url` that `scrape` returns.
@@ -521,7 +535,7 @@ of its top sitemap files, the map raises
 | `discovery_capped` | discovery stopped before reading every sitemap file it found — the site has more pages than this map lists. |
 | `sitemaps_skipped` | how many sitemap files were skipped or only partly read. |
 | `unread_sitemaps` | the sitemap files this map knew about but did not read whole (up to 1000). read each one with `sitemap_url` in another call, except a file that says it is over the size limit: no call reads that one. empty when every file was read. |
-| `discovery_cap_reason` | which limit stopped discovery first, or `None`: `max_results` (ask again with a higher one), `depth` (there are files past the `depth` you asked for: the answer to your `depth`, not a fault), `time`, `file_budget`, `file_size` (a sitemap file was too large: a file of pages that turns out too large while it is read gives the links in its first part; a file that says up front that it is over the size limit, or any other file that turns out too large, gives nothing and is in `unread_sitemaps`) or `unread_files` (a file could not be read whole this time; when its download broke off, the links received before the break are returned and the file is in `unread_sitemaps`; asking again later can return more). |
+| `discovery_cap_reason` | which limit stopped discovery first, or `None`: `max_results` (ask again with a higher one), `depth` (there are files past the `depth` you asked for: the answer to your `depth`, not a fault; read them with `sitemap_url`, or ask with a higher depth), `time`, `file_budget`, `file_size` (a sitemap file was too large: a file of pages that turns out too large while it is read gives the links in its first part; a file that says up front that it is over the size limit, or any other file that turns out too large, gives nothing and is in `unread_sitemaps`) or `unread_files` (a file could not be read whole this time; when its download broke off, the links received before the break are returned and the file is in `unread_sitemaps`; asking again later can return more). |
 
 against an older server, the fields it predates come back as their defaults (`False`,
 `0`, `[]`, `None`, and `"page"` for a link's `type`) rather than raising. see the
@@ -540,15 +554,25 @@ if status.status == "done" and status.response_meta:
 #### a large site, in several calls
 
 a very large or deep site is mapped in several calls: list its sitemap files with
-`depth=0` and `entries="sitemaps"`, then read each one with `sitemap_url`.
-`truncation.unread_sitemaps` names the files a call did not read whole, to read next. the
-full walk-through is in
+`depth=1` and `entries="sitemaps"`. then read each link of type `"sitemap"` with
+`sitemap_url`, plus each `"sitemap_index"` link that is also in `unread_sitemaps` (an index
+this map read only in part). the files of an index read whole are already in
+your list. a listed file shows as `"sitemap"` until a map opens it,
+even when it is a sitemap index itself; reading it then follows its own files, and its own
+`unread_sitemaps` names the files to read next. the full walk-through is in
 [map a very large or deep site in several calls](https://crawlbrulee.com/docs/map/sitemaps#map-a-very-large-or-deep-site-in-several-calls).
 
 ```python
-top = client.map(url="https://example.com", depth=0, entries="sitemaps")
+tree = client.map(url="https://example.com", depth=1, entries="sitemaps")
 
-for file in top.links:
+unread = set(tree.response_meta.truncation.unread_sitemaps)
+to_read = [
+    link
+    for link in tree.links
+    if link.type == "sitemap" or (link.type == "sitemap_index" and link.url in unread)
+]
+
+for file in to_read:
     part = client.map(url="https://example.com", sitemap_url=file.url)
     print(len(part.links), part.response_meta.truncation.unread_sitemaps)
 ```

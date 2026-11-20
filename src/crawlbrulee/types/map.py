@@ -11,8 +11,10 @@ from .common import MapUsage
 #: ``max_results`` was reached. Ask again with a higher one to get more.
 #: ``depth``: there are sitemap files past the ``depth`` you asked for. That is
 #: the answer to the depth you chose, not a fault: with ``depth=0`` it is how a
-#: site's top sitemap files are listed. The files past it are in
-#: ``unread_sitemaps``; read each one with ``sitemap_url``. ``time``: discovery
+#: site's top sitemap files are listed, and with ``depth=1`` and
+#: ``entries="sitemaps"`` how the top files and every file they list are
+#: listed. The files past it are in ``unread_sitemaps``; read each one with
+#: ``sitemap_url``, or ask with a higher depth. ``time``: discovery
 #: ran out of its time budget. ``file_budget``: the site has more sitemap files
 #: than one request reads. ``file_size``: a sitemap file was too large. A file
 #: that says up front that it is over the size limit is not downloaded: nothing
@@ -35,13 +37,20 @@ DiscoveryCapReason = Literal[
 ]
 
 #: What a map returns, sent as ``entries``: ``pages`` (page addresses, the
-#: default), ``sitemaps`` (sitemap files) or ``all`` (both).
+#: default), ``sitemaps`` (sitemap files, of type ``sitemap`` or
+#: ``sitemap_index``) or ``all`` (both).
 MapEntries = Literal["pages", "sitemaps", "all"]
 
-#: What a link in a map result is: ``page`` for a page address, ``sitemap`` for
-#: a sitemap file, which you can read with ``sitemap_url`` in another call (a
-#: file on another site only when the site's robots.txt names its host).
-MapLinkType = Literal["page", "sitemap"]
+#: What a link in a map result is. ``page``: a page address.
+#: ``sitemap_index``: a sitemap file that this map found to be a sitemap index
+#: (a file that lists other sitemap files), whether it read all of the file,
+#: part of it, or only its start. Such a file can also be in
+#: ``unread_sitemaps`` when this map did not read all of it. ``sitemap``: any
+#: other sitemap file: one that lists pages, or one whose kind this map did not
+#: learn (past ``depth``, or it could not be read). Read a ``sitemap`` or
+#: ``sitemap_index`` file with ``sitemap_url`` in another call (a file on
+#: another site only when the site's robots.txt names its host).
+MapLinkType = Literal["page", "sitemap", "sitemap_index"]
 
 # --------------------------------------------------------------------------
 # Request shapes (nested; top-level fields are method keyword arguments)
@@ -87,9 +96,10 @@ class MapLinkItem:
     """Single discovered URL in a map result: ``url``, ``type`` and ``lastmod``."""
 
     url: str
-    #: ``page`` for a page address, ``sitemap`` for a sitemap file you can read
-    #: with ``sitemap_url`` in another call. A link found on the home page is a
-    #: ``page``. Always sent by the api; an older api that predates it reads as
+    #: ``page`` for a page address; ``sitemap`` or ``sitemap_index`` for a
+    #: sitemap file you can read with ``sitemap_url`` in another call (see
+    #: :data:`MapLinkType`). A link found on the home page is a ``page``.
+    #: Always sent by the api; an older api that predates it reads as
     #: ``page``, which is what every link was then.
     type: MapLinkType = "page"
     #: The entry's ``lastmod`` from the sitemap, as an ISO 8601 date and time

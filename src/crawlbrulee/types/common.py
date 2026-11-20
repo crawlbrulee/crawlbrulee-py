@@ -9,8 +9,10 @@ from typing import Literal, TypedDict, cast
 #:
 #: - ``basic`` -- basic proxy, lowest cost.
 #: - ``advanced`` -- enhanced proxy tier with a higher success rate.
-#: - ``auto`` -- tries the basic tier first and escalates to advanced on failure;
-#:   billed at the delivered tier (default).
+#: - ``auto`` -- we start with the lightest way to get the page and step up our
+#:   effort on our own when a site needs more: a stronger proxy, a real browser,
+#:   or both (a map steps up the proxy only). Billed at the delivered tier
+#:   (default). See https://crawlbrulee.com/docs/proxies#how-auto-works.
 ProxyTier = Literal["basic", "advanced", "auto"]
 
 #: The proxy tier actually used to route the fetch, as reported back on

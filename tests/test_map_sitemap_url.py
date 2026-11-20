@@ -136,6 +136,43 @@ def test_type_lastmod_and_unread_sitemaps_are_parsed() -> None:
     assert truncation.unread_sitemaps == ["https://example.com/sitemap-blog.xml"]
 
 
+def test_a_sitemap_index_link_is_parsed() -> None:
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        _capture(seen)(request)
+        return json_response(
+            _payload(
+                [
+                    {
+                        "url": "https://example.com/sitemap_index.xml",
+                        "type": "sitemap_index",
+                        "lastmod": "2026-11-12T00:00:00.000Z",
+                    },
+                    {
+                        "url": "https://example.com/sitemap-products.xml",
+                        "type": "sitemap",
+                        "lastmod": None,
+                    },
+                ],
+                {
+                    "discovery_capped": True,
+                    "sitemaps_skipped": 2,
+                    "unread_sitemaps": [
+                        "https://example.com/sitemap_index.xml",
+                        "https://example.com/sitemap-products.xml",
+                    ],
+                    "discovery_cap_reason": "depth",
+                },
+            )
+        )
+
+    result = make_sync(handler).map(url="https://example.com", depth=1, entries="sitemaps")
+
+    assert seen[0]["body"] == {"url": "https://example.com", "depth": 1, "entries": "sitemaps"}
+    assert [link.type for link in result.links] == ["sitemap_index", "sitemap"]
+
+
 def test_total_before_max_results_alone_fills_the_deprecated_total() -> None:
     # After the api removes total_before_max_urls, the old attribute still reads right.
     truncation = from_dict(
@@ -149,7 +186,7 @@ def test_total_before_max_results_alone_fills_the_deprecated_total() -> None:
 
 def test_option_values() -> None:
     assert set(get_args(MapEntries)) == {"pages", "sitemaps", "all"}
-    assert set(get_args(MapLinkType)) == {"page", "sitemap"}
+    assert set(get_args(MapLinkType)) == {"page", "sitemap", "sitemap_index"}
     assert set(get_args(DiscoveryCapReason)) == {
         "max_results",
         "time",

@@ -119,6 +119,11 @@ class AsyncCrawlbrulee:
         Raises :class:`~crawlbrulee.TargetUnreachableError` when the site could
         not be reached at all.
 
+        ``require_js=True`` goes straight to a headless browser to render
+        JavaScript. Without it, we still move to a browser on our own when a page
+        needs one; set it when you already know the page needs JavaScript, to
+        save time.
+
         ``zero_data_retention=True`` keeps the result out of the shared cache;
         anything stored to deliver it is kept for 24 hours, then deleted. Adds 1
         credit. Must be enabled for your organization, or
@@ -172,6 +177,11 @@ class AsyncCrawlbrulee:
         Pass ``webhook`` to receive a signed ``scrape.complete`` POST when the
         job finishes (async-only; verify deliveries with
         :func:`crawlbrulee.verify_webhook_signature`).
+
+        ``require_js=True`` goes straight to a headless browser to render
+        JavaScript. Without it, we still move to a browser on our own when a page
+        needs one; set it when you already know the page needs JavaScript, to
+        save time.
 
         ``zero_data_retention=True`` keeps the result out of the shared cache;
         anything stored to deliver it is kept for 24 hours, then deleted. Adds 1
@@ -335,8 +345,8 @@ class AsyncCrawlbrulee:
         timeout: float | None = None,
     ) -> MapResponse:
         """Build (or return a cached) link map of a site from its sitemaps, plus
-        the links on its home page. Every link has ``url``, ``type`` (``"page"``
-        or ``"sitemap"``) and ``lastmod``.
+        the links on its home page. Every link has ``url``, ``type`` (``"page"``,
+        ``"sitemap"`` or ``"sitemap_index"``) and ``lastmod``.
 
         Every knob is optional; anything left as ``None`` is not sent, so the
         server's own default applies. A plain map reads the site's top sitemap
@@ -356,18 +366,29 @@ class AsyncCrawlbrulee:
         default 3 (a higher value raises
         :class:`~crawlbrulee.ValidationError`). With ``sitemap_url``, level 0 is
         that file, and it is read; without it, ``depth=0`` lists the site's top
-        sitemap files without reading them. A sitemap index holds only sitemap
-        files, so reading one at a low ``depth`` with ``entries="pages"``
-        returns no pages. ``entries`` is ``"pages"`` (the default),
-        ``"sitemaps"`` or ``"all"``.
+        sitemap files without reading their entries (a top file found at one of
+        the usual addresses can still show as ``"sitemap_index"``, because
+        finding it shows its kind). A sitemap index holds only sitemap files,
+        so reading one at a low ``depth`` with ``entries="pages"`` returns no
+        pages. ``entries`` is ``"pages"`` (the default), ``"sitemaps"`` or
+        ``"all"``. ``depth=1`` with ``entries="sitemaps"`` lists the site's top
+        sitemap files and every file they list, in one call. A listed file
+        shows as ``"sitemap"`` until a map opens it, even when it is a sitemap
+        index itself. To go deeper, read a listed file with ``sitemap_url``, or
+        ask with a higher ``depth``.
         How to map a very large or deep site in several calls, step by step:
         https://crawlbrulee.com/docs/map/sitemaps#map-a-very-large-or-deep-site-in-several-calls.
 
         ``modified_since`` is a date such as ``"2026-11-01"`` (the start of
         that day in UTC), or an ISO 8601 date and time with a zone. Only
         entries whose ``lastmod`` is at or after it come back; an entry with no
-        ``lastmod`` is left out. Such a request is always mapped fresh: it never
-        reads from or adds to the cache, and each call is priced as a fresh map.
+        ``lastmod`` is left out. Every sitemap file is read whatever its own
+        ``lastmod``, and each entry returned, a page or a sitemap file, is
+        judged by its own ``lastmod``: with ``entries="sitemaps"``, a file
+        comes back when its own ``lastmod`` matches, not when a page in it
+        does, so ask with ``entries="pages"`` to find the pages that changed.
+        Such a request is always mapped fresh: it never reads from or adds to
+        the cache, and each call is priced as a fresh map.
 
         ``max_urls`` is deprecated: use ``max_results``, which means the same.
         When both are sent, only ``max_results`` is used. The api removes

@@ -550,7 +550,7 @@ class ScrapeResponse:
     #: redirects (in the browser: the main document, not images or scripts).
     #: A ``404`` page is data, not an error. Billing follows this status:
     #: ``2xx`` and ``4xx`` pages are billed, except ``403``, ``407``, ``408``,
-    #: ``429`` and ``451``; ``5xx`` pages are never billed.
+    #: ``429``, ``444`` and ``451``; ``5xx`` pages are never billed.
     #:
     #: ``None`` on an older api version that does not send it.
     page_status_code: int | None = None
